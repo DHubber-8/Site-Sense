@@ -1,0 +1,10 @@
+[project]
+name = "site-sense"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "opencv-python>=5.0.0.93",
+    "pillow>=12.3.0",
+]
