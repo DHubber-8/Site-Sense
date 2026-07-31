@@ -42,7 +42,7 @@ class PpeDetectionSmokeTest(unittest.TestCase):
         sample_images = sorted(
             path
             for path in sample_root.iterdir()
-            if path.suffix.lower() in {".png", ".jpg", ".jpeg", ".bmp", ".ppm"}
+            if path.suffix.lower() in {".png", ".jpg", ".jpeg", ".bmp"}
         )
         self.assertTrue(
             sample_images,
@@ -66,6 +66,7 @@ class PpeDetectionSmokeTest(unittest.TestCase):
 
         batch = agent.detect(image_path)
 
+        self.assertEqual(agent.model_path, PPE_MODEL_PATH)
         self.assertEqual(batch.source_image, str(image_path))
         self.assertEqual(len(batch.detections), 1)
         detection = batch.detections[0]
