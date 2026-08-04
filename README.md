@@ -83,7 +83,7 @@ Run the PPE detection agent against a sample image — see `agents/ppe_detection
 
 ## Contributing / workflow
 
-This project follows a spec-driven workflow: every new agent or feature gets a plan doc under `/specs/` before implementation begins. See `AGENTS.md` for full conventions. Changes to `/taxonomy/` require review from the domain lead (enforced via `CODEOWNERS`).
+This project follows a spec-driven workflow: every new agent or feature gets a plan doc under `/specs/` before implementation begins. See `AGENTS.md` for full conventions. Changes to `/taxonomy/` require review from the domain lead.
 
 ## Team
 
