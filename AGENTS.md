@@ -43,6 +43,18 @@ detection pipeline. See `REQUIREMENTS.md` and `TASKS.md` for full scope.
   - AI tools must **not modify** these files directly. If a change seems needed, stop and
     flag it in the response rather than editing — a human (ideally C) makes the call.
 
+## Tool-specific config
+GitHub Copilot reads this file automatically, but also has its own config under `.github/`:
+- `.github/instructions/taxonomy.instructions.md` — scopes the taxonomy protection rule above
+  specifically to `/taxonomy/**`, enforced by Copilot directly.
+- `.github/agents/planner.agent.md` and `.github/agents/implementer.agent.md` — Copilot's
+  version of the plan-before-code workflow (equivalent to Claude Code's Plan Mode / Zoo Code's
+  Architect mode).
+- `.github/prompts/new-agent.prompt.md` — reusable prompt for starting a new agent module.
+
+These are additive, not a separate set of rules — if you edit a convention in this file, check
+whether the matching `.github/` file needs the same update.
+
 ## Coding conventions
 - Python, managed with `uv` (not manual venv activation).
 - Formatting: run `black .` after edits (see hooks below if your tool supports them).

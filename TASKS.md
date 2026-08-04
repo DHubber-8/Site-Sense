@@ -8,25 +8,30 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 ## Week 1 — Foundations & Scoping
 
 ### Repo & tooling
-- [ ] Init repo, add `AGENTS.md` with project conventions (agent folder structure, data schema rules, commit format) — **E2**
-- [ ] Run an Architect-mode (Zoo Code) session per agent to generate `/specs/*.md` plan docs before any code — **E1 + E2**
-- [ ] Set up base folder structure (see repo layout below) — **E2**
+- [x] Init repo, add `AGENTS.md` with project conventions (agent folder structure, data schema rules, commit format) — **E2**
+- [x] Set up base folder structure (see repo layout below) — **E2**
+- [x] Add `CODEOWNERS` for taxonomy protection + branch protection ruleset on `main` — **E2**
+- [x] Add Copilot-specific config (`.github/agents/`, `.github/instructions/`, `.github/prompts/`) mirroring `AGENTS.md` conventions — **E2**
+- [x] Run an Architect-mode session for the PPE detection agent, producing `/specs/ppe_detection/plan.md` — **E1**
+- [ ] Run an Architect-mode session for the heat detection agent, producing `/specs/heat_detection/plan.md` — **E1** (blocked, see below)
 
 ### Research & taxonomy (C)
-- [ ] Research PPE safety codes → draft severity taxonomy (minor/moderate/critical) — **C**
+- [~] Research PPE safety codes → draft severity taxonomy (minor/moderate/critical) — **C** (skeleton drafted on `doc/taxonomy` branch, not yet merged, no real thresholds filled in)
 - [ ] Research heat-stress/heat-exhaustion occupational guidance → draft heat-severity thresholds — **C**
-- [ ] Decide + document the heat-detection data approach (real thermal proxy dataset vs. simulated model) — **C + E1**
+- [ ] Decide + document the heat-detection data approach — **C + E1** — **blocking task, see note below**
 
 ### PPE pipeline (E1)
-- [ ] Evaluate pretrained PPE-detection models, select one — **E1**
-- [ ] Get detection running standalone on sample images (no pipeline integration yet) — **E1**
+- [x] Evaluate pretrained PPE-detection models, select one — **E1** (YOLO26, base checkpoint; fine-tuning on Construction-PPE dataset in progress)
+- [x] Get detection running standalone on sample images — **E1** (fixture-based smoke test passing)
 
 ### Heat pipeline (E1 + E2)
-- [ ] Source or simulate a starter thermal/heat dataset — **E2**
-- [ ] Prototype the heat-reading extraction method (from thermal proxy or RGB+ambient model) — **E1**
+- [ ] Source or build a starter thermal/heat data source — **E2** (under discussion: public thermal dataset vs. simulated model vs. DIY ESP32 + AMG8833 sensor)
+- [ ] Prototype the heat-reading extraction method — **E1** (blocked on the above)
 
 ### End of Week 1 checkpoint
 - [ ] Team sync: confirm both detection approaches are technically viable before committing further — **All**
+
+> **Open blocker carried into Week 2 risk:** the heat-detection data approach still isn't decided. This is now the single item most likely to compress Week 2 if it slips further — prioritize this conversation before anything else on the heat side.
 
 ---
 
