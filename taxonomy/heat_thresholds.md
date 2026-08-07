@@ -14,20 +14,19 @@ The thresholds are based on:
 
 # Section 1- Heat stress assesment using WBGT
 
-The threshold come from heat stress standards and this is what engineers use to account for air temperature, humidity, wind speed and etc. So the WBGT (Wet-Bulb Globe Temperature) is scientificalyy more accurate
+The threshold come from heat stress standards and this is what engineers use to account for air temperature, humidity, wind speed and etc. So the WBGT (Wet-Bulb Globe Temperature) is scientifically more accurate
 
-# Risk Level: Normal (WBGT< 28°C )
+## Risk Level: Normal (WBGT< 28°C )
 Continue normal work and routine monitoring 
 
-# Risk Level: Caution (WBGT: 28–30°C )
+## Risk Level: Caution (WBGT: 28–30°C )
 Increase hydration and more breaks 
 
-# Risk Level: High Risk (WBGT: 28–30°C)
+## Risk Level: High Risk (WBGT: 28–30°C)
 Reduce workload, increase rest frequency and monitor workers temperature closely
 
-# Risk Level: Extreme (WBGT> 32°C)
+## Risk Level: Extreme (WBGT> 32°C)
 Recommend suspension of heavy outdoor work and move workers to a shaded or cooler area
-
 
 # Section 2- Leval Compliance 
 This explains the chinese labour regulations rather than the standards 
@@ -66,7 +65,6 @@ AI response:
 - Trigger Critical Heat Alert
 - Immediate Suspension of outdoor work
 - Notify Site supervisor immediately
-
 
 
 PS: The AI system supports as a decision making tool and does not replace the judgements of a Qualified Person (QP)
