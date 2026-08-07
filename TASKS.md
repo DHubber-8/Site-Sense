@@ -3,21 +3,18 @@
 Team: **E1, E2** (CS) · **C** (Civil Engineering)
 Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 
----
-
 ## Week 1 — Foundations & Scoping
 
 ### Repo & tooling
 - [x] Init repo, add `AGENTS.md` with project conventions (agent folder structure, data schema rules, commit format) — **E2**
 - [x] Set up base folder structure (see repo layout below) — **E2**
-- [x] Add `CODEOWNERS` for taxonomy protection + branch protection ruleset on `main` — **E2**
 - [x] Add Copilot-specific config (`.github/agents/`, `.github/instructions/`, `.github/prompts/`) mirroring `AGENTS.md` conventions — **E2**
 - [x] Run an Architect-mode session for the PPE detection agent, producing `/specs/ppe_detection/plan.md` — **E1**
 - [ ] Run an Architect-mode session for the heat detection agent, producing `/specs/heat_detection/plan.md` — **E1** (blocked, see below)
 
 ### Research & taxonomy (C)
-- [~] Research PPE safety codes → draft severity taxonomy (minor/moderate/critical) — **C** (skeleton drafted on `doc/taxonomy` branch, not yet merged, no real thresholds filled in)
-- [ ] Research heat-stress/heat-exhaustion occupational guidance → draft heat-severity thresholds — **C**
+- [x] Research PPE safety codes → draft severity taxonomy (minor/moderate/critical) — **C** (merged)
+- [x] Research heat-stress/heat-exhaustion occupational guidance → draft heat-severity thresholds — **C** (merged)
 - [ ] Decide + document the heat-detection data approach — **C + E1** — **blocking task, see note below**
 
 ### PPE pipeline (E1)
