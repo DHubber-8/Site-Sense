@@ -1,14 +1,15 @@
 # PPE Severity Levels
 
 
-This taxonomy is based on Chinese occupational safety requirements for construction sites. 
+This taxonomy is based on Chinese occupational safety requirements for construction sites.
 
-The classification is based on Chinese construction safety standards, which categorize PPE violations into three severity levels: Critical (level 3), Moderate (level 2), and Minor (level 1). 
+The three-level severity scheme used here is project policy: Critical = 3, Moderate = 2, and Minor = 1 in reference to the classification based on Chinese construction safety standards, which categorize PPE violations.
 
-Each level corresponds to the potential risk of injury or fatality associated with the violation.
+Each severity tier corresponds to the potential risk of injury or fatality associated with the violation.
 
--GB2811: Safety helmet 
--Law of the People's Republic of China on Work Safety
+- GB 2811-2019: Safety helmets for head protection
+- Law of the People's Republic of China on Work Safety
+- Applicable item-specific PPE standards should be cited for other referenced PPE examples
 
 
 ## Critical (level 3)
@@ -18,7 +19,7 @@ Violations that present an immediate risk of fatality or severe injury.
 Examples
 
 - No safety helmet
-- No fall protection while working at height (>2 m)
+- No fall protection while working at height at or above 2m
 - No boots worn
 - No gloves and goggles worn 
 - No safety harness worn while working at height 
@@ -65,10 +66,12 @@ Recommended Action
 - Worker reminder
 - Replace PPE if needed
 
-**level 1** : No PPE 
-**level 2** : Basic PPE (e.g., gloves, safety glasses)
-**level 3** : Intermediate PPE (e.g., hard hat, steel-toed boots, high-visibility vest)
-**level 4** : Advanced PPE (e.g., full-body harness, respirator)
+## PPE Coverage
+
+**coverage 1** : No PPE 
+**coverage 2** : Basic PPE (e.g., gloves, safety glasses)
+**coverage 3** : Intermediate PPE (e.g., hard hat, steel-toed boots, high-visibility vest)
+**coverage 4** : Advanced PPE (e.g., full-body harness, respirator)
 
 Failure to comply with PPE requirements:
 - Increase the risk of injury or fatality
