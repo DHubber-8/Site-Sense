@@ -1,17 +1,11 @@
 # PPE Severity Levels
 
 
-This taxonomy is based on Chinese occupational safety requirements for construction sites. 
-
-The classification is based on Chinese construction safety standards, which categorize PPE violations into three severity levels: Critical (level 3), Moderate (level 2), and Minor (level 1). 
-
-Each level corresponds to the potential risk of injury or fatality associated with the violation.
-
--GB2811: Safety helmet 
--Law of the People's Republic of China on Work Safety
+This taxonomy is based on Chinese occupational safety requirements for construction sites.
 
 
-## Critical (level 3)
+
+## Critical (level 1)
 
 Violations that present an immediate risk of fatality or severe injury.
 
@@ -50,7 +44,7 @@ Recommended Action
 
 ---
 
-## Minor (level 1)
+## Minor (level 3)
 
 Administrative or low-risk PPE issues.
 
@@ -67,9 +61,5 @@ Recommended Action
 
 **level 1** : No PPE 
 **level 2** : Basic PPE (e.g., gloves, safety glasses)
-**level 3** : Intermediate PPE (e.g., hard hat, steel-toed boots, high-visibility vest)
+**level 3** : Intermediate PPE (e.g., hard hat, steel-toed boots high-visibility vest)
 **level 4** : Advanced PPE (e.g., full-body harness, respirator)
-
-Failure to comply with PPE requirements:
-- Increase the risk of injury or fatality
-- Reduce the effectiveness of safety measures
