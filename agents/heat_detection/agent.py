@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Protocol
-from urllib.parse import urlencode
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from urllib.request import Request, urlopen
 
 from .schema import HeatComplianceAlert, HeatComplianceAlertBatch
@@ -14,6 +15,8 @@ OPENWEATHER_FORECAST_URL = "https://api.openweathermap.org/data/2.5/forecast"
 OPENWEATHER_API_KEY_ENV = "OPENWEATHER_API_KEY"
 OPENMETEO_GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search"
 OPENMETEO_FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
+HEAT_PROXY_MIN_DURATION_MINUTES = 30.0
+HEAT_PROXY_MIN_AMBIENT_DELTA_C = 3.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,6 +39,13 @@ class WeatherForecastClient(Protocol):
 def _build_openweather_request_url(base_url: str, api_key: str, city: str, units: str) -> str:
     query_string = urlencode({"q": city, "appid": api_key, "units": units})
     return f"{base_url}?{query_string}"
+
+
+def _redact_openweather_source_url(request_url: str) -> str:
+    parsed_url = urlsplit(request_url)
+    filtered_query = [(key, value) for key, value in parse_qsl(parsed_url.query, keep_blank_values=True) if key != "appid"]
+    redacted_query = urlencode(filtered_query)
+    return urlunsplit((parsed_url.scheme, parsed_url.netloc, parsed_url.path, redacted_query, parsed_url.fragment))
 
 
 def _build_openmeteo_geocoding_url(base_url: str, city: str = 'CN', country_code: str = 'CN') -> str:
@@ -92,9 +102,13 @@ def _parse_openweather_forecast(city: str, payload: dict[str, Any], source_url: 
         if temperature is None or timestamp is None:
             continue
 
+        temperature_c = float(temperature)
+        if not math.isfinite(temperature_c):
+            continue
+
         entry_date = datetime.fromtimestamp(int(timestamp), tz=timezone.utc).astimezone(site_timezone).date()
         if entry_date == today:
-            max_temperatures.append(float(temperature))
+            max_temperatures.append(temperature_c)
 
     if not max_temperatures:
         raise RuntimeError(f"OpenWeather forecast did not include today's max temperature for {city}")
@@ -157,11 +171,15 @@ def _parse_openmeteo_forecast(city: str, payload: dict[str, Any], source_url: st
     if not isinstance(dates, list) or len(dates) != len(temperatures):
         raise RuntimeError(f"Open-Meteo forecast payload had mismatched dates and temperatures for {city}")
 
+    max_temperature_c = float(temperatures[0])
+    if not math.isfinite(max_temperature_c):
+        raise RuntimeError(f"Open-Meteo forecast payload included a non-finite max temperature for {city}")
+
     # Open-Meteo's daily array is ordered starting today, in the site's local
     return WeatherForecastReading(
         city=city,
         forecast_date=date.fromisoformat(str(dates[0])),
-        max_temperature_c=float(temperatures[0]),
+        max_temperature_c=max_temperature_c,
         provider="Open-Meteo",
         source_url=source_url,
         metadata={
@@ -189,7 +207,8 @@ class OpenWeatherForecastClient:
 
         request_url = _build_openweather_request_url(self.base_url, api_key, city, self.units)
         payload = _load_json(request_url, self.timeout_seconds)
-        return _parse_openweather_forecast(city, payload, request_url)
+        source_url = _redact_openweather_source_url(request_url)
+        return _parse_openweather_forecast(city, payload, source_url)
 
 
 @dataclass(slots=True)
@@ -257,7 +276,32 @@ def _ai_actions(level: str) -> list[str]:
     raise ValueError(f"Unsupported heat compliance level: {level}")
 
 
+def _passes_heat_proxy_safeguards(reading: WeatherForecastReading) -> bool:
+    duration_minutes = reading.metadata.get("elevated_duration_minutes")
+    ambient_temperature_c = reading.metadata.get("ambient_temperature_c")
+    if duration_minutes is None or ambient_temperature_c is None:
+        return False
+
+    try:
+        sustained_duration_minutes = float(duration_minutes)
+        ambient_temperature_c = float(ambient_temperature_c)
+    except (TypeError, ValueError):
+        return False
+
+    if not math.isfinite(sustained_duration_minutes) or not math.isfinite(ambient_temperature_c):
+        return False
+    if sustained_duration_minutes < HEAT_PROXY_MIN_DURATION_MINUTES:
+        return False
+    if reading.max_temperature_c - ambient_temperature_c < HEAT_PROXY_MIN_AMBIENT_DELTA_C:
+        return False
+    return True
+
+
 def classify_heat_alert(reading: WeatherForecastReading) -> HeatComplianceAlert | None:
+    # Forecast temperature is a proxy for live thermal-camera data, so require
+    # sustained elevation and ambient compensation before using it as a signal.
+    if not _passes_heat_proxy_safeguards(reading):
+        return None
     if reading.max_temperature_c < 35.0:
         return None
 
