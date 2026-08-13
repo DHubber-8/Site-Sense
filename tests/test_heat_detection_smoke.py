@@ -9,6 +9,9 @@ from agents.heat_detection import (
     HeatComplianceAlertAgent,
     OpenMeteoForecastClient,
     OpenWeatherForecastClient,
+    SimulatedWBGTReadingSource,
+    WBGTRiskAgent,
+    WBGTReading,
     WeatherForecastReading,
     classify_heat_alert,
 )
