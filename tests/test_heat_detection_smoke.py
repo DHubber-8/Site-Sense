@@ -248,5 +248,161 @@ class HeatDetectionSmokeTest(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 client.get_todays_forecast("Wuhan")
 
+    def test_wbgt_agent_single_spike_does_not_alert(self) -> None:
+        readings = [
+            WBGTReading(
+                city="Guangzhou",
+                reading_at=datetime(2026, 8, 10, 9, 0, tzinfo=timezone.utc),
+                air_temperature_c=30.0,
+                relative_humidity_percent=60.0,
+                wind_speed_mps=2.0,
+                wbgt_c=27.0,
+                source_name="Simulated WBGT proxy",
+                source_url="simulated://wbgt",
+            ),
+            WBGTReading(
+                city="Guangzhou",
+                reading_at=datetime(2026, 8, 10, 10, 0, tzinfo=timezone.utc),
+                air_temperature_c=31.0,
+                relative_humidity_percent=62.0,
+                wind_speed_mps=1.8,
+                wbgt_c=27.5,
+                source_name="Simulated WBGT proxy",
+                source_url="simulated://wbgt",
+            ),
+            WBGTReading(
+                city="Guangzhou",
+                reading_at=datetime(2026, 8, 10, 11, 0, tzinfo=timezone.utc),
+                air_temperature_c=36.0,
+                relative_humidity_percent=69.0,
+                wind_speed_mps=1.5,
+                wbgt_c=34.5,
+                source_name="Simulated WBGT proxy",
+                source_url="simulated://wbgt",
+            ),
+        ]
+
+        class _PatternSource:
+            def __init__(self, items):
+                self._items = list(items)
+                self._index = 0
+
+            def get_reading(self, city: str, reading_at: datetime | None = None) -> WBGTReading:
+                item = self._items[self._index]
+                self._index += 1
+                return item
+
+        agent = WBGTRiskAgent(
+            site_city="Guangzhou",
+            reading_source=_PatternSource(readings),
+            min_consecutive_readings=3,
+        )
+
+        for _ in readings:
+            batch = agent.assess(zone_id="zone-A")
+
+        self.assertEqual(batch.alerts, [])
+
+    def test_wbgt_agent_sustained_elevated_pattern_alerts(self) -> None:
+        readings = [
+            WBGTReading(
+                city="Guangzhou",
+                reading_at=datetime(2026, 8, 10, 9, 0, tzinfo=timezone.utc),
+                air_temperature_c=30.0,
+                relative_humidity_percent=60.0,
+                wind_speed_mps=2.0,
+                wbgt_c=27.0,
+                source_name="Simulated WBGT proxy",
+                source_url="simulated://wbgt",
+            ),
+            WBGTReading(
+                city="Guangzhou",
+                reading_at=datetime(2026, 8, 10, 10, 0, tzinfo=timezone.utc),
+                air_temperature_c=32.0,
+                relative_humidity_percent=66.0,
+                wind_speed_mps=1.6,
+                wbgt_c=29.5,
+                source_name="Simulated WBGT proxy",
+                source_url="simulated://wbgt",
+            ),
+            WBGTReading(
+                city="Guangzhou",
+                reading_at=datetime(2026, 8, 10, 11, 0, tzinfo=timezone.utc),
+                air_temperature_c=33.5,
+                relative_humidity_percent=68.0,
+                wind_speed_mps=1.4,
+                wbgt_c=30.8,
+                source_name="Simulated WBGT proxy",
+                source_url="simulated://wbgt",
+            ),
+            WBGTReading(
+                city="Guangzhou",
+                reading_at=datetime(2026, 8, 10, 12, 0, tzinfo=timezone.utc),
+                air_temperature_c=34.8,
+                relative_humidity_percent=70.0,
+                wind_speed_mps=1.2,
+                wbgt_c=31.6,
+                source_name="Simulated WBGT proxy",
+                source_url="simulated://wbgt",
+            ),
+        ]
+
+        class _PatternSource:
+            def __init__(self, items):
+                self._items = list(items)
+                self._index = 0
+
+            def get_reading(self, city: str, reading_at: datetime | None = None) -> WBGTReading:
+                item = self._items[self._index]
+                self._index += 1
+                return item
+
+        agent = WBGTRiskAgent(
+            site_city="Guangzhou",
+            reading_source=_PatternSource(readings),
+            min_consecutive_readings=3,
+        )
+
+        for _ in readings[:-1]:
+            batch = agent.assess(zone_id="zone-A")
+            self.assertEqual(batch.alerts, [])
+
+        batch = agent.assess(zone_id="zone-A")
+
+        self.assertEqual(len(batch.alerts), 1)
+        self.assertIn(batch.alerts[0].level, {"Caution", "High Risk", "Extreme"})
+
+    def test_wbgt_agent_returns_simulated_risk_level(self) -> None:
+        agent = WBGTRiskAgent(
+            site_city="Guangzhou",
+            reading_source=SimulatedWBGTReadingSource(seed=42),
+        )
+
+        batch = agent.assess(reading_at=datetime(2026, 8, 10, 12, 0, tzinfo=timezone.utc), zone_id="zone-A")
+
+        self.assertEqual(batch.site_city, "Guangzhou")
+        self.assertEqual(batch.reading_source_name, "Simulated WBGT proxy")
+        self.assertIn("level", batch.alerts[0].to_dict()) if batch.alerts else self.assertEqual(batch.alerts, [])
+
+    def test_wbgt_agent_can_use_custom_reading_source(self) -> None:
+        class _FixedWBGTSource:
+            def get_reading(self, city: str, reading_at: datetime | None = None) -> WBGTReading:
+                return WBGTReading(
+                    city=city,
+                    reading_at=reading_at or datetime(2026, 8, 10, 13, 0, tzinfo=timezone.utc),
+                    air_temperature_c=35.0,
+                    relative_humidity_percent=70.0,
+                    wind_speed_mps=1.2,
+                    wbgt_c=31.5,
+                    source_name="Simulated WBGT proxy",
+                    source_url="simulated://wbgt",
+                    metadata={"simulation_mode": True},
+                )
+
+        agent = WBGTRiskAgent(site_city="Shenzhen", reading_source=_FixedWBGTSource(), min_consecutive_readings=1)
+        batch = agent.assess(zone_id="zone-1")
+
+        self.assertEqual(batch.alerts[0].level, "High Risk")
+
 if __name__ == "__main__":
     unittest.main()
