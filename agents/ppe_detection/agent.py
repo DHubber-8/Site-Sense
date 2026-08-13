@@ -137,7 +137,7 @@ class PpeDetectionAgent:
             detections=detections,
             source_image=source_image,
             model_name=model.__class__.__name__,
-            model_path=str(Path(self.model_path)),
+            model_path=str(self.model_path),
         )
 
     def detect_many(

@@ -5,6 +5,7 @@ import unittest
 from pathlib import Path
 
 from agents.ppe_detection import PPE_MODEL_PATH, PpeDetectionAgent
+from agents.ppe_detection.config import is_base_checkpoint
 
 
 class _FakeScalar:
@@ -80,6 +81,33 @@ class PpeDetectionSmokeTest(unittest.TestCase):
             {"x_min": 1.0, "y_min": 2.0, "x_max": 11.0, "y_max": 12.0},
         )
         self.assertEqual(batch.model_path, PPE_MODEL_PATH)
+
+    def test_detect_preserves_ppe_class_labels(self) -> None:
+        image_path = self._sample_image_path()
+        agent = PpeDetectionAgent(
+            model_path=PPE_MODEL_PATH,
+            model_override=_FakeModel(
+                [
+                    _FakePrediction(
+                        names={0: "helmet", 1: "no_helmet"},
+                        boxes=[
+                            _FakeBox(0, 0.93, [3.0, 4.0, 13.0, 14.0]),
+                            _FakeBox(1, 0.87, [5.0, 6.0, 15.0, 16.0]),
+                        ],
+                    )
+                ]
+            ),
+        )
+
+        batch = agent.detect(image_path)
+
+        self.assertEqual([detection.item for detection in batch.detections], ["helmet", "no_helmet"])
+        self.assertEqual([detection.raw_label for detection in batch.detections], ["helmet", "no_helmet"])
+
+    def test_default_checkpoint_points_to_finetuned_weights(self) -> None:
+        self.assertEqual(PPE_MODEL_PATH, "runs/detect/train/weights/best.pt")
+        self.assertFalse(is_base_checkpoint(PPE_MODEL_PATH))
+        self.assertTrue(is_base_checkpoint("yolo26n.pt"))
 
     def test_detect_returns_empty_batch_for_no_predictions(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
