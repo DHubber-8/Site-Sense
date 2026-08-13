@@ -63,7 +63,7 @@ class WBGTRiskSmokeTest(unittest.TestCase):
 
     def test_agent_returns_structured_simulated_batch(self) -> None:
         source = SimulatedWBGTReadingSource(seed=17)
-        agent = WBGTRiskAgent(site_city="Shenzhen", reading_source=source)
+        agent = WBGTRiskAgent(site_city="Shenzhen", reading_source=source, min_consecutive_readings=1)
 
         batch = agent.assess(reading_at=datetime(2026, 8, 10, 13, 0, tzinfo=timezone.utc))
 
