@@ -14,14 +14,16 @@ Both feed into a shared risk-scoring and alert-routing system so site managers g
 ## Functional Requirements
 
 ### PPE Detection
-- FR1.1 — Detect presence/absence of required PPE (hard hats at minimum; harness/vest as stretch goals) from site images
-- FR1.2 — Detect unsafe worker proximity to machinery/hazard zones
+- FR1.1 — Detect presence/absence of required PPE (helmet, gloves, vest, boots, goggles) from site images — **implemented**, fine-tuned YOLO26 checkpoint (100 epochs on the Construction-PPE dataset), verified against real sample images. `no_boots` detection is unreliable due to limited training data (4 instances in the validation set) — documented as a known limitation, not a silent gap.
+- FR1.2 — Detect unsafe worker proximity to machinery/hazard zones — **not implemented**, descoped in favor of getting core PPE detection production-ready
 
 ### Heat Exhaustion Detection
-- FR2.1 — Estimate head/body surface temperature from available imaging (thermal camera feed if accessible, or a documented proxy method if not — see Data Requirements)
-- FR2.2 — Flag individuals whose estimated temperature exceeds a threshold associated with heat stress risk
-- FR2.3 — Track duration of elevated readings, not just single-frame spikes — a worker briefly reading hot after walking through sun is different from sustained elevation
-- FR2.4 — **False-positive filtering**: distinguish genuine physiological heat stress from environmental confounds — e.g. a hard hat or exposed skin heated by direct sun exposure, ambient temperature drift over the day, camera calibration drift. This is treated as a first-class problem, not an afterthought.
+- FR2.1 — **Implemented as two paths**, per `taxonomy/heat_thresholds.md`:
+  - Section 2 (compliance alerts): today's forecast maximum temperature for the site city, fetched from Open-Meteo (default, no API key required) or OpenWeather (fallback), classified into Level 1/2/3
+  - Section 1 (WBGT risk): simulated temperature/humidity/wind-speed readings — the team decided against real thermal hardware or a proxy dataset, given time/resource constraints, in favor of a deterministic, seedable simulation that follows realistic time-of-day heat exposure patterns. **Clearly labeled as simulated in code and docs, not live sensor data.**
+- FR2.2 — Flag individuals/zones whose estimated WBGT or forecast temperature exceeds a threshold associated with heat stress risk — implemented
+- FR2.3 — Track duration of elevated readings, not just single-frame spikes — implemented via `_has_sustained_elevation()`, requiring multiple consecutive elevated readings within a configurable time window before escalating
+- FR2.4 — **False-positive filtering**: implemented at the reading level (sustained-duration requirement above). Filtering against environmental confounds (e.g. direct sun exposure vs. genuine heat stress) is addressed by the simulation's realistic time-of-day modeling rather than sensor-calibration logic, since there is no physical sensor in this build.
 
 ### Risk Scoring & Alerting
 - FR3.1 — Classify all detections (PPE + heat) into severity tiers (minor / moderate / critical) against a taxonomy defined with C's input
@@ -43,10 +45,10 @@ Both feed into a shared risk-scoring and alert-routing system so site managers g
 ---
 
 ## Data Requirements
-- Sample/public construction site images for PPE detection (real thermal site data is unlikely to be available)
-- For heat detection: either (a) a public thermal-imaging dataset as a proxy, or (b) a documented simulated/synthetic approach — e.g. estimating relative heat from RGB + a stated ambient-temperature model — **clearly labeled as a proxy method in the pitch**, since judges will likely ask how this generalizes to real thermal hardware
-- Reference heat-stress thresholds (e.g. WBGT-style guidance or equivalent occupational heat exposure standards) — C's research task
-- Reference safety-code taxonomy for PPE severity — C's research task
+- Sample/public construction site images for PPE detection — using the Ultralytics Construction-PPE dataset (11 classes)
+- Heat detection: **decided** — simulated data for the WBGT path (no real thermal hardware or proxy dataset), plus live weather-forecast data via Open-Meteo/OpenWeather for the compliance-alert path. Simulated readings are clearly labeled as such throughout the codebase and this document — no claim is made that this reflects live sensor hardware.
+- Reference heat-stress thresholds — sourced from GBZ/T 229.3-2025 (WBGT) and China's high-temperature allowance guidance (compliance levels), documented in `taxonomy/heat_thresholds.md`
+- Reference safety-code taxonomy for PPE severity — sourced from GB 2811-2019 and China's Law on Work Safety, documented in `taxonomy/ppe_severity.md`. **One cleanup item outstanding:** a duplicate/legacy file (`ppe_severity_ak.md`) with conflicting severity numbering still needs to be resolved by C.
 
 ---
 
@@ -64,6 +66,7 @@ Both feed into a shared risk-scoring and alert-routing system so site managers g
 ---
 
 ## Key Risks
-- **Heat detection is the highest-risk scope addition** — without real thermal camera access, the team must be explicit about using a proxy/simulated approach and framing it honestly as a proof-of-concept for when real thermal hardware is available on-site
-- False-positive filtering for heat needs a genuine methodology (e.g. baseline calibration per shift, ambient-temp compensation) rather than an arbitrary threshold tweak — this is the part judges are most likely to probe
-- If either detection pipeline is behind by end of Week 1, cut scope (e.g. hard hats only + heat-only, skip proximity detection) rather than pushing both simultaneously
+- **Heat detection uses simulated data, not real thermal hardware** — decided and implemented; must remain framed honestly as a proof-of-concept in the pitch, since judges will likely ask how this generalizes to real sensor hardware
+- **PPE class imbalance** — the fine-tuned model performs well on "worn PPE" classes but weaker on some "missing PPE" classes, particularly `no_boots` (only 4 training instances). This is a data-volume limitation, not something further training epochs alone resolved — worth disclosing directly rather than overselling detection accuracy across all 11 classes
+- False-positive filtering for heat is implemented via sustained-duration tracking (multiple consecutive elevated readings required before escalating) — this is the methodology judges are likely to probe, and it's ready to explain
+- **Risk-scoring is now the critical path** — PPE and heat detection are both done; nothing downstream (alert routing, logging, dashboard) can proceed until risk-scoring exists. If this slips, cut dashboard scope before cutting risk-scoring/alert-routing, since those are the functional core
