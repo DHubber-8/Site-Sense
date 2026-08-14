@@ -14,30 +14,30 @@ This project is under active development. Current state:
 
 | Component | Status |
 |---|---|
-| PPE detection agent | ✅ Implemented — YOLO-based, running on a base checkpoint (fine-tuning in progress) |
-| Heat detection agent | 🚧 Not yet implemented — data/sensing approach in progress |
-| Risk scoring agent | ⏳ Planned |
+| PPE detection agent | ✅ Implemented — fine-tuned YOLO26 checkpoint (100 epochs), verified against real sample images. Known limitation: `no_boots` detection is unreliable due to limited training data (4 instances). |
+| Heat detection agent | ✅ Implemented — two paths: weather-forecast compliance alerts (Open-Meteo default, OpenWeather fallback) and simulated WBGT risk levels with sustained-elevation false-positive filtering |
+| Risk scoring agent | 🚧 In progress — integration contract published for detection agent output shapes |
 | Alert routing agent | ⏳ Planned |
 | Logging agent | ⏳ Planned |
 | Dashboard | ⏳ Planned |
-| PPE severity taxonomy | 🚧 In progress |
-| Heat-stress thresholds | 🚧 In progress |
+| PPE severity taxonomy | ✅ Drafted |
+| Heat-stress thresholds | ✅ Complete — both WBGT-based and compliance-alert tiers defined |
 
-## How it works (planned pipeline)
+## How it works (pipeline)
 
 ```
-Site image / sensor input
+Site image / weather + simulated sensor input
         │
    ┌────┴────┐
-PPE detection   Heat detection
+PPE detection   Heat detection  ✅ both implemented
    └────┬────┘
         │  (scored against /taxonomy)
-   Risk scoring
+   Risk scoring          🚧 in progress
         │
-   Alert routing
+   Alert routing         ⏳ planned
         │
    ┌────┴────┐
-Dashboard   Logging
+Dashboard   Logging      ⏳ planned
 ```
 
 ## Repo structure
@@ -45,15 +45,16 @@ Dashboard   Logging
 ```
 agents/
   ppe_detection/     PPE detection agent (implemented)
-  heat_detection/     Heat/temperature detection agent (planned)
-  risk_scoring/        Severity classification agent (planned)
+  heat_detection/     Heat detection agent — compliance + WBGT paths (implemented)
+  risk_scoring/        Severity classification agent (in progress)
   alert_routing/       Alert dispatch agent (planned)
   logging/              Compliance/incident logging (planned)
 taxonomy/               Severity + threshold definitions (owned by domain lead,
                          see AGENTS.md — protected from direct AI edits)
 data/                   Sample images and synthetic/proxy data (no real site data)
 dashboard/              Manager-facing UI (planned)
-specs/                  Plan docs produced before implementation (spec-driven workflow)
+specs/                  Plan docs produced before implementation (spec-driven workflow),
+                         including the risk-scoring integration contract
 scripts/                One-off scripts (e.g. model training)
 tests/                  Test suite
 ```
