@@ -71,5 +71,10 @@ AI response:
 - Immediate Suspension of outdoor work
 - Alert Site supervisor immediately
 
+## Heat Sensor Data Approach
 
-PS: The AI system is a decision making tool and does not replace the judgement of a Qualified Person (QP).
+For this prototype, heat sensor readings are simulated rather than collected from physical hardware
+
+The simulated readings indicates the temperature and environmental data that could be collected for the smart helmet implementation
+
+The AI system is a decision making tool and does not replace the judgement of a Qualified Person (QP).
