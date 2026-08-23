@@ -1,0 +1,827 @@
+{
+  "metadata": {
+    "simulated_data": true,
+    "note": "SIMULATED OUTPUT ONLY: synthetic WBGT proxy trace for testing/workflow design. Not real thermal-camera or physical sensor output.",
+    "scenario": "direct_sun_accumulation",
+    "seed": 42,
+    "city": "Shenzhen",
+    "sample_count": 37,
+    "reading_date": "2026-08-10"
+  },
+  "readings": [
+    {
+      "city": "Shenzhen",
+      "reading_at": "2026-08-10T08:00:00+00:00",
+      "air_temperature_c": 29.953123708194738,
+      "relative_humidity_percent": 66.90747236639868,
+      "wind_speed_mps": 1.79457324603432,
+      "wbgt_c": 26.6691268308495,
+      "source_name": "Simulated WBGT proxy",
+      "source_url": "simulated://wbgt",
+      "metadata": {
+        "simulation_mode": true,
+        "simulation_seed": 42,
+        "simulation_profile": {
+          "scenario": "direct_sun_accumulation",
+          "progress": 0.0,
+          "break_curve": 6.639677199580735e-36,
+          "sun_curve": 0.0,
+          "solar_load": 2.626671053494884,
+          "scenario_curve": 0.0
+        }
+      }
+    },
+    {
+      "city": "Shenzhen",
+      "reading_at": "2026-08-10T08:15:00+00:00",
+      "air_temperature_c": 30.102122909730387,
+      "relative_humidity_percent": 66.32106560184587,
+      "wind_speed_mps": 1.7470582228564084,
+      "wbgt_c": 26.75595507759624,
+      "source_name": "Simulated WBGT proxy",
+      "source_url": "simulated://wbgt",
+      "metadata": {
+        "simulation_mode": true,
+        "simulation_seed": 42,
+        "simulation_profile": {
+          "scenario": "direct_sun_accumulation",
+          "progress": 0.027777777777777776,
+          "break_curve": 4.1900931944943974e-32,
+          "sun_curve": 0.03710219565007435,
+          "solar_load": 2.626671053494884,
+          "scenario_curve": 0.00037682047988471187
+        }
+      }
+    },
+    {
+      "city": "Shenzhen",
+      "reading_at": "2026-08-10T08:30:00+00:00",
+      "air_temperature_c": 30.33459865395348,
+      "relative_humidity_percent": 65.4891423724343,
+      "wind_speed_mps": 1.6684963393982855,
+      "wbgt_c": 26.899956394042796,
+      "source_name": "Simulated WBGT proxy",
+      "source_url": "simulated://wbgt",
+      "metadata": {
+        "simulation_mode": true,
+        "simulation_seed": 42,
+        "simulation_profile": {
+          "scenario": "direct_sun_accumulation",
+          "progress": 0.05555555555555555,
+          "break_curve": 1.603810890548638e-28,
+          "sun_curve": 0.09409245727536532,
+          "solar_load": 2.626671053494884,
+          "scenario_curve": 0.0017314122614910474
+        }
+      }
+    },
+    {
+      "city": "Shenzhen",
+      "reading_at": "2026-08-10T08:45:00+00:00",
+      "air_temperature_c": 30.61022512530237,
+      "relative_humidity_percent": 64.52352566600418,
+      "wind_speed_mps": 1.5702894485589873,
+      "wbgt_c": 27.07192887161473,
+      "source_name": "Simulated WBGT proxy",
+      "source_url": "simulated://wbgt",
+      "metadata": {
+        "simulation_mode": true,
+        "simulation_seed": 42,
+        "simulation_profile": {
+          "scenario": "direct_sun_accumulation",
+          "progress": 0.08333333333333333,
+          "break_curve": 3.7233631217505106e-25,
+          "sun_curve": 0.16126677879447432,
+          "solar_load": 2.626671053494884,
+          "scenario_curve": 0.004224752374258371
+        }
+      }
+    },
+    {
+      "city": "Shenzhen",
+      "reading_at": "2026-08-10T09:00:00+00:00",
+      "air_temperature_c": 30.91447472715542,
+      "relative_humidity_percent": 63.470264708965445,
+      "wind_speed_mps": 1.460682721966327,
+      "wbgt_c": 27.261415514760774,
+      "source_name": "Simulated WBGT proxy",
+      "source_url": "simulated://wbgt",
+      "metadata": {
+        "simulation_mode": true,
+        "simulation_seed": 42,
+        "simulation_profile": {
+          "scenario": "direct_sun_accumulation",
+          "progress": 0.1111111111111111,
+          "break_curve": 5.242885663363464e-22,
+          "sun_curve": 0.2349469298410244,
+          "solar_load": 2.626671053494884,
+          "scenario_curve": 0.007955481666385851
+        }
+      }
+    },
+    {
+      "city": "Shenzhen",
+      "reading_at": "2026-08-10T09:15:00+00:00",
+      "air_temperature_c": 31.237921402576262,
+      "relative_humidity_percent": 62.36278757063343,
+      "wind_speed_mps": 1.347735538273453,
+      "wbgt_c": 27.461798102349327,
+      "source_name": "Simulated WBGT proxy",
+      "source_url": "simulated://wbgt",
+      "metadata": {
+        "simulation_mode": true,
+        "simulation_seed": 42,
+        "simulation_profile": {
+          "scenario": "direct_sun_accumulation",
+          "progress": 0.1388888888888889,
+          "break_curve": 4.4777324417183015e-19,
+          "sun_curve": 0.3126296397677578,
+          "solar_load": 2.626671053494884,
+          "scenario_curve": 0.012997759828574656
+        }
+      }
+    },
+    {
+      "city": "Shenzhen",
+      "reading_at": "2026-08-10T09:30:00+00:00",
+      "air_temperature_c": 31.5732775453345,
+      "relative_humidity_percent": 61.2293047433386,
+      "wind_speed_mps": 1.2390891767748515,
+      "wbgt_c": 27.66820057250966,
+      "source_name": "Simulated WBGT proxy",
+      "source_url": "simulated://wbgt",
+      "metadata": {
+        "simulation_mode": true,
+        "simulation_seed": 42,
+        "simulation_profile": {
+          "scenario": "direct_sun_accumulation",
+          "progress": 0.16666666666666666,
+          "break_curve": 2.3195228302435696e-16,
+          "sun_curve": 0.39229204894837527,
+          "solar_load": 2.626671053494884,
+          "scenario_curve": 0.01941186441032164
+        }
+      }
+    },
+    {
+      "city": "Shenzhen",
+      "reading_at": "2026-08-10T09:45:00+00:00",
+      "air_temperature_c": 31.91442705039866,
+      "relative_humidity_percent": 60.09503604010743,
+      "wind_speed_mps": 1.1413898179403608,
+      "wbgt_c": 27.876827168671195,
+      "source_name": "Simulated WBGT proxy",
+      "source_url": "simulated://wbgt",
+      "metadata": {
+        "simulation_mode": true,
+        "simulation_seed": 42,
+        "simulation_profile": {
+          "scenario": "direct_sun_accumulation",
+          "progress": 0.19444444444444445,
+          "break_curve": 7.287724095819692e-14,
+          "sun_curve": 0.4721698551108656,
+          "solar_load": 2.626671053494884,
+          "scenario_curve": 0.027248975996698854
+        }
+      }
+    },
+    {
+      "city": "Shenzhen",
+      "reading_at": "2026-08-10T10:00:00+00:00",
+      "air_temperature_c": 32.2559919693813,
+      "relative_humidity_percent": 58.98301079506473,
+      "wind_speed_mps": 1.0597151740633493,
+      "wbgt_c": 28.084666543350906,
+      "source_name": "Simulated WBGT proxy",
+      "source_url": "simulated://wbgt",
+      "metadata": {
+        "simulation_mode": true,
+        "simulation_seed": 42,
+        "simulation_profile": {
+          "scenario": "direct_sun_accumulation",
+          "progress": 0.2222222222222222,
+          "break_curve": 1.3887943864964021e-11,
+          "sun_curve": 0.5506696239951623,
+          "solar_load": 2.626671053494884,
+          "scenario_curve": 0.036553794813545995
+        }
+      }
+    },
+    {
+      "city": "Shenzhen",
+      "reading_at": "2026-08-10T10:15:00+00:00",
+      "air_temperature_c": 32.592906502773126,
+      "relative_humidity_percent": 57.91455734654262,
+      "wind_speed_mps": 0.9971822109430939,
+      "wbgt_c": 28.28915060608834,
+      "source_name": "Simulated WBGT proxy",
+      "source_url": "simulated://wbgt",
+      "metadata": {
+        "simulation_mode": true,
+        "simulation_seed": 42,
+        "simulation_profile": {
+          "scenario": "direct_sun_accumulation",
+          "progress": 0.25,
+          "break_curve": 1.6052280551856116e-09,
+          "sun_curve": 0.626332219312064,
+          "solar_load": 2.626671053494884,
+          "scenario_curve": 0.04736614270344993
+        }
+      }
+    },
+    {
+      "city": "Shenzhen",
+      "reading_at": "2026-08-10T10:30:00+00:00",
+      "air_temperature_c": 32.91900639961686,
+      "relative_humidity_percent": 56.91079482811725,
+      "wind_speed_mps": 0.9550009220341897,
+      "wbgt_c": 28.48693159075168,
+      "source_name": "Simulated WBGT proxy",
+      "source_url": "simulated://wbgt",
+      "metadata": {
+        "simulation_mode": true,
+        "simulation_seed": 42,
+        "simulation_profile": {
+          "scenario": "direct_sun_accumulation",
+          "progress": 0.2777777777777778,
+          "break_curve": 1.1253517471925912e-07,
+          "sun_curve": 0.6978191040206821,
+          "solar_load": 2.626671053494884,
+          "scenario_curve": 0.059722021334921015
+        }
+      }
+    },
+    {
+      "city": "Shenzhen",
+      "reading_at": "2026-08-10T10:45:00+00:00",
+      "air_temperature_c": 33.22158477213233,
+      "relative_humidity_percent": 55.998699560664164,
+      "wind_speed_mps": 0.9336540916679027,
+      "wbgt_c": 28.669199395683805,
+      "source_name": "Simulated WBGT proxy",
+      "source_url": "simulated://wbgt",
+      "metadata": {
+        "simulation_mode": true,
+        "simulation_seed": 42,
+        "simulation_profile": {
+          "scenario": "direct_sun_accumulation",
+          "progress": 0.3055555555555556,
+          "break_curve": 4.785117392129009e-06,
+          "sun_curve": 0.7639098346679574,
+          "solar_load": 2.626671053494884,
+          "scenario_curve": 0.07365435075379137
+        }
+      }
+    },
+    {
+      "city": "Shenzhen",
+      "reading_at": "2026-08-10T11:00:00+00:00",
+      "air_temperature_c": 33.465637226677174,
+      "relative_humidity_percent": 55.22919549460353,
+      "wind_speed_mps": 0.9365323143540709,
+      "wbgt_c": 28.80831510096483,
+      "source_name": "Simulated WBGT proxy",
+      "source_url": "simulated://wbgt",
+      "metadata": {
+        "simulation_mode": true,
+        "simulation_seed": 42,
+        "simulation_profile": {
+          "scenario": "direct_sun_accumulation",
+          "progress": 0.3333333333333333,
+          "break_curve": 0.00012340980408667956,
+          "sun_curve": 0.8235052131498907,
+          "solar_load": 2.626671053494884,
+          "scenario_curve": 0.08919350686224782
+        }
+      }
+    },
+    {
+      "city": "Shenzhen",
+      "reading_at": "2026-08-10T11:15:00+00:00",
+      "air_temperature_c": 33.56272501320211,
+      "relative_humidity_percent": 54.71606859768718,
+      "wind_speed_mps": 0.9769191180878544,
+      "wbgt_c": 28.83201012444526,
+      "source_name": "Simulated WBGT proxy",
+      "source_url": "simulated://wbgt",
+      "metadata": {
+        "simulation_mode": true,
+        "simulation_seed": 42,
+        "simulation_profile": {
+          "scenario": "direct_sun_accumulation",
+          "progress": 0.3611111111111111,
+          "break_curve": 0.0019304541362277093,
+          "sun_curve": 0.875633181533753,
+          "solar_load": 2.626671053494884,
+          "scenario_curve": 0.10636772567740378
+        }
+      }
+    },
+    {
+      "city": "Shenzhen",
+      "reading_at": "2026-08-10T11:30:00+00:00",
+      "air_temperature_c": 33.328908685565004,
+      "relative_humidity_percent": 54.70916519641237,
+      "wind_speed_mps": 1.0863299456482447,
+      "wbgt_c": 28.591187617695205,
+      "source_name": "Simulated WBGT proxy",
+      "source_url": "simulated://wbgt",
+      "metadata": {
+        "simulation_mode": true,
+        "simulation_seed": 42,
+        "simulation_profile": {
+          "scenario": "direct_sun_accumulation",
+          "progress": 0.3888888888888889,
+          "break_curve": 0.01831563888873418,
+          "sun_curve": 0.9194557904496334,
+          "solar_load": 2.626671053494884,
+          "scenario_curve": 0.12520341561104667
+        }
+      }
+    },
+    {
+      "city": "Shenzhen",
+      "reading_at": "2026-08-10T11:45:00+00:00",
+      "air_temperature_c": 32.455838581574085,
+      "relative_humidity_percent": 55.709154402060484,
+      "wind_speed_mps": 1.3171208191352395,
+      "wbgt_c": 27.84334979336118,
+      "source_name": "Simulated WBGT proxy",
+      "source_url": "simulated://wbgt",
+      "metadata": {
+        "simulation_mode": true,
+        "simulation_seed": 42,
+        "simulation_profile": {
+          "scenario": "direct_sun_accumulation",
+          "progress": 0.4166666666666667,
+          "break_curve": 0.10539922456186433,
+          "sun_curve": 0.9542762174486215,
+          "solar_load": 2.626671053494884,
+          "scenario_curve": 0.1457254040773242
+        }
+      }
+    },
+    {
+      "city": "Shenzhen",
+      "reading_at": "2026-08-10T12:00:00+00:00",
+      "air_temperature_c": 30.67593900192314,
+      "relative_humidity_percent": 58.29240850819615,
+      "wind_speed_mps": 1.7071045444394808,
+      "wbgt_c": 26.379986747030156,
+      "source_name": "Simulated WBGT proxy",
+      "source_url": "simulated://wbgt",
+      "metadata": {
+        "simulation_mode": true,
+        "simulation_seed": 42,
+        "simulation_profile": {
+          "scenario": "direct_sun_accumulation",
+          "progress": 0.4444444444444444,
+          "break_curve": 0.36787944117144233,
+          "sun_curve": 0.9795451747182334,
+          "solar_load": 2.626671053494884,
+          "scenario_curve": 0.16795713588487776
+        }
+      }
+    },
+    {
+      "city": "Shenzhen",
+      "reading_at": "2026-08-10T12:15:00+00:00",
+      "air_temperature_c": 28.471727832116805,
+      "relative_humidity_percent": 61.83834448963157,
+      "wind_speed_mps": 2.152656927206243,
+      "wbgt_c": 24.575217813014152,
+      "source_name": "Simulated WBGT proxy",
+      "source_url": "simulated://wbgt",
+      "metadata": {
+        "simulation_mode": true,
+        "simulation_seed": 42,
+        "simulation_profile": {
+          "scenario": "direct_sun_accumulation",
+          "progress": 0.4722222222222222,
+          "break_curve": 0.7788007830714049,
+          "sun_curve": 0.9948662662250437,
+          "solar_load": 2.626671053494884,
+          "scenario_curve": 0.19192083538561522
+        }
+      }
+    },
+    {
+      "city": "Shenzhen",
+      "reading_at": "2026-08-10T12:30:00+00:00",
+      "air_temperature_c": 27.47542572472051,
+      "relative_humidity_percent": 63.6125048952088,
+      "wind_speed_mps": 2.347923660889434,
+      "wbgt_c": 23.764253274281266,
+      "source_name": "Simulated WBGT proxy",
+      "source_url": "simulated://wbgt",
+      "metadata": {
+        "simulation_mode": true,
+        "simulation_seed": 42,
+        "simulation_profile": {
+          "scenario": "direct_sun_accumulation",
+          "progress": 0.5,
+          "break_curve": 1.0,
+          "sun_curve": 1.0,
+          "solar_load": 2.626671053494884,
+          "scenario_curve": 0.217637640824031
+        }
+      }
+    },
+    {
+      "city": "Shenzhen",
+      "reading_at": "2026-08-10T12:45:00+00:00",
+      "air_temperature_c": 28.760678210438837,
+      "relative_humidity_percent": 61.735863793584656,
+      "wind_speed_mps": 2.0972788898288917,
+      "wbgt_c": 24.8534381811925,
+      "source_name": "Simulated WBGT proxy",
+      "source_url": "simulated://wbgt",
+      "metadata": {
+        "simulation_mode": true,
+        "simulation_seed": 42,
+        "simulation_profile": {
+          "scenario": "direct_sun_accumulation",
+          "progress": 0.5277777777777778,
+          "break_curve": 0.7788007830714049,
+          "sun_curve": 0.9948662662250437,
+          "solar_load": 2.626671053494884,
+          "scenario_curve": 0.24512771698750774
+        }
+      }
+    },
+    {
+      "city": "Shenzhen",
+      "reading_at": "2026-08-10T13:00:00+00:00",
+      "air_temperature_c": 31.25350633782671,
+      "relative_humidity_percent": 58.07731201425064,
+      "wind_speed_mps": 1.598830836903916,
+      "wbgt_c": 26.92785704317059,
+      "source_name": "Simulated WBGT proxy",
+      "source_url": "simulated://wbgt",
+      "metadata": {
+        "simulation_mode": true,
+        "simulation_seed": 42,
+        "simulation_profile": {
+          "scenario": "direct_sun_accumulation",
+          "progress": 0.5555555555555556,
+          "break_curve": 0.36787944117144233,
+          "sun_curve": 0.9795451747182334,
+          "solar_load": 2.626671053494884,
+          "scenario_curve": 0.27441035065808644
+        }
+      }
+    },
+    {
+      "city": "Shenzhen",
+      "reading_at": "2026-08-10T13:15:00+00:00",
+      "air_temperature_c": 33.3213731809921,
+      "relative_humidity_percent": 55.36146885003314,
+      "wind_speed_mps": 1.1606135576639542,
+      "wbgt_c": 28.652463470169003,
+      "source_name": "Simulated WBGT proxy",
+      "source_url": "simulated://wbgt",
+      "metadata": {
+        "simulation_mode": true,
+        "simulation_seed": 42,
+        "simulation_profile": {
+          "scenario": "direct_sun_accumulation",
+          "progress": 0.5833333333333334,
+          "break_curve": 0.10539922456186433,
+          "sun_curve": 0.9542762174486215,
+          "solar_load": 2.626671053494884,
+          "scenario_curve": 0.3055040322473551
+        }
+      }
+    },
+    {
+      "city": "Shenzhen",
+      "reading_at": "2026-08-10T13:30:00+00:00",
+      "air_temperature_c": 34.48147841277509,
+      "relative_humidity_percent": 54.199663941590714,
+      "wind_speed_mps": 0.8878622414982623,
+      "wbgt_c": 29.65686721310171,
+      "source_name": "Simulated WBGT proxy",
+      "source_url": "simulated://wbgt",
+      "metadata": {
+        "simulation_mode": true,
+        "simulation_seed": 42,
+        "simulation_profile": {
+          "scenario": "direct_sun_accumulation",
+          "progress": 0.6111111111111112,
+          "break_curve": 0.01831563888873418,
+          "sun_curve": 0.9194557904496335,
+          "solar_load": 2.626671053494884,
+          "scenario_curve": 0.33842652619701913
+        }
+      }
+    },
+    {
+      "city": "Shenzhen",
+      "reading_at": "2026-08-10T13:45:00+00:00",
+      "air_temperature_c": 35.001164898179766,
+      "relative_humidity_percent": 54.0071262595913,
+      "wind_speed_mps": 0.743608751614028,
+      "wbgt_c": 30.150553761916083,
+      "source_name": "Simulated WBGT proxy",
+      "source_url": "simulated://wbgt",
+      "metadata": {
+        "simulation_mode": true,
+        "simulation_seed": 42,
+        "simulation_profile": {
+          "scenario": "direct_sun_accumulation",
+          "progress": 0.6388888888888888,
+          "break_curve": 0.0019304541362277093,
+          "sun_curve": 0.8756331815337531,
+          "solar_load": 2.626671053494884,
+          "scenario_curve": 0.3731949321462136
+        }
+      }
+    },
+    {
+      "city": "Shenzhen",
+      "reading_at": "2026-08-10T14:00:00+00:00",
+      "air_temperature_c": 35.18861352963957,
+      "relative_humidity_percent": 54.275886216475115,
+      "wind_speed_mps": 0.6754702106701567,
+      "wbgt_c": 30.37516225110885,
+      "source_name": "Simulated WBGT proxy",
+      "source_url": "simulated://wbgt",
+      "metadata": {
+        "simulation_mode": true,
+        "simulation_seed": 42,
+        "simulation_profile": {
+          "scenario": "direct_sun_accumulation",
+          "progress": 0.6666666666666666,
+          "break_curve": 0.00012340980408667956,
+          "sun_curve": 0.8235052131498908,
+          "solar_load": 2.626671053494884,
+          "scenario_curve": 0.40982573843632336
+        }
+      }
+    },
+    {
+      "city": "Shenzhen",
+      "reading_at": "2026-08-10T14:15:00+00:00",
+      "air_temperature_c": 35.22767183035138,
+      "relative_humidity_percent": 54.75010508351062,
+      "wind_speed_mps": 0.6510326367443435,
+      "wbgt_c": 30.478808153649368,
+      "source_name": "Simulated WBGT proxy",
+      "source_url": "simulated://wbgt",
+      "metadata": {
+        "simulation_mode": true,
+        "simulation_seed": 42,
+        "simulation_profile": {
+          "scenario": "direct_sun_accumulation",
+          "progress": 0.6944444444444444,
+          "break_curve": 4.785117392129009e-06,
+          "sun_curve": 0.7639098346679576,
+          "solar_load": 2.626671053494884,
+          "scenario_curve": 0.44833486920083726
+        }
+      }
+    },
+    {
+      "city": "Shenzhen",
+      "reading_at": "2026-08-10T14:30:00+00:00",
+      "air_temperature_c": 35.20677429740296,
+      "relative_humidity_percent": 55.31148204456981,
+      "wind_speed_mps": 0.6553471496387026,
+      "wbgt_c": 30.53315846183698,
+      "source_name": "Simulated WBGT proxy",
+      "source_url": "simulated://wbgt",
+      "metadata": {
+        "simulation_mode": true,
+        "simulation_seed": 42,
+        "simulation_profile": {
+          "scenario": "direct_sun_accumulation",
+          "progress": 0.7222222222222222,
+          "break_curve": 1.1253517471925912e-07,
+          "sun_curve": 0.6978191040206821,
+          "solar_load": 2.626671053494884,
+          "scenario_curve": 0.48873772604163845
+        }
+      }
+    },
+    {
+      "city": "Shenzhen",
+      "reading_at": "2026-08-10T14:45:00+00:00",
+      "air_temperature_c": 35.16101741451449,
+      "relative_humidity_percent": 55.90617963400896,
+      "wind_speed_mps": 0.6827882073831377,
+      "wbgt_c": 30.565724308034724,
+      "source_name": "Simulated WBGT proxy",
+      "source_url": "simulated://wbgt",
+      "metadata": {
+        "simulation_mode": true,
+        "simulation_seed": 42,
+        "simulation_profile": {
+          "scenario": "direct_sun_accumulation",
+          "progress": 0.75,
+          "break_curve": 1.6052280551856116e-09,
+          "sun_curve": 0.626332219312064,
+          "solar_load": 2.626671053494884,
+          "scenario_curve": 0.5310492251033824
+        }
+      }
+    },
+    {
+      "city": "Shenzhen",
+      "reading_at": "2026-08-10T15:00:00+00:00",
+      "air_temperature_c": 35.103302953683404,
+      "relative_humidity_percent": 56.50598336600197,
+      "wind_speed_mps": 0.7303342153919843,
+      "wbgt_c": 30.585582439746954,
+      "source_name": "Simulated WBGT proxy",
+      "source_url": "simulated://wbgt",
+      "metadata": {
+        "simulation_mode": true,
+        "simulation_seed": 42,
+        "simulation_profile": {
+          "scenario": "direct_sun_accumulation",
+          "progress": 0.7777777777777778,
+          "break_curve": 1.3887943864964021e-11,
+          "sun_curve": 0.5506696239951625,
+          "solar_load": 2.626671053494884,
+          "scenario_curve": 0.5752838302096777
+        }
+      }
+    },
+    {
+      "city": "Shenzhen",
+      "reading_at": "2026-08-10T15:15:00+00:00",
+      "air_temperature_c": 35.04009715825669,
+      "relative_humidity_percent": 57.09023285763784,
+      "wind_speed_mps": 0.794234641575831,
+      "wbgt_c": 30.59662215099654,
+      "source_name": "Simulated WBGT proxy",
+      "source_url": "simulated://wbgt",
+      "metadata": {
+        "simulation_mode": true,
+        "simulation_seed": 42,
+        "simulation_profile": {
+          "scenario": "direct_sun_accumulation",
+          "progress": 0.8055555555555556,
+          "break_curve": 7.287724095819692e-14,
+          "sun_curve": 0.4721698551108655,
+          "solar_load": 2.626671053494884,
+          "scenario_curve": 0.6214555826082517
+        }
+      }
+    },
+    {
+      "city": "Shenzhen",
+      "reading_at": "2026-08-10T15:30:00+00:00",
+      "air_temperature_c": 34.97687741045244,
+      "relative_humidity_percent": 57.63972321084855,
+      "wind_speed_mps": 0.8691322587455843,
+      "wbgt_c": 30.602137933093754,
+      "source_name": "Simulated WBGT proxy",
+      "source_url": "simulated://wbgt",
+      "metadata": {
+        "simulation_mode": true,
+        "simulation_seed": 42,
+        "simulation_profile": {
+          "scenario": "direct_sun_accumulation",
+          "progress": 0.8333333333333334,
+          "break_curve": 2.3195228302435696e-16,
+          "sun_curve": 0.39229204894837527,
+          "solar_load": 2.626671053494884,
+          "scenario_curve": 0.6695781277796022
+        }
+      }
+    },
+    {
+      "city": "Shenzhen",
+      "reading_at": "2026-08-10T15:45:00+00:00",
+      "air_temperature_c": 34.919544131852646,
+      "relative_humidity_percent": 58.13512704540231,
+      "wind_speed_mps": 0.9482746836330882,
+      "wbgt_c": 30.60598680175585,
+      "source_name": "Simulated WBGT proxy",
+      "source_url": "simulated://wbgt",
+      "metadata": {
+        "simulation_mode": true,
+        "simulation_seed": 42,
+        "simulation_profile": {
+          "scenario": "direct_sun_accumulation",
+          "progress": 0.8611111111111112,
+          "break_curve": 4.4777324417183015e-19,
+          "sun_curve": 0.31262963976775787,
+          "solar_load": 2.626671053494884,
+          "scenario_curve": 0.7196647396892899
+        }
+      }
+    },
+    {
+      "city": "Shenzhen",
+      "reading_at": "2026-08-10T16:00:00+00:00",
+      "air_temperature_c": 34.874848182178326,
+      "relative_humidity_percent": 58.55636544973154,
+      "wind_speed_mps": 1.0241030444960493,
+      "wbgt_c": 30.61287007842376,
+      "source_name": "Simulated WBGT proxy",
+      "source_url": "simulated://wbgt",
+      "metadata": {
+        "simulation_mode": true,
+        "simulation_seed": 42,
+        "simulation_profile": {
+          "scenario": "direct_sun_accumulation",
+          "progress": 0.8888888888888888,
+          "break_curve": 5.242885663363464e-22,
+          "sun_curve": 0.23494692984102453,
+          "solar_load": 2.626671053494884,
+          "scenario_curve": 0.7717283428038904
+        }
+      }
+    },
+    {
+      "city": "Shenzhen",
+      "reading_at": "2026-08-10T16:15:00+00:00",
+      "air_temperature_c": 34.850828297866784,
+      "relative_humidity_percent": 58.88161490119816,
+      "wind_speed_mps": 1.0889286948709653,
+      "wbgt_c": 30.628562691934235,
+      "source_name": "Simulated WBGT proxy",
+      "source_url": "simulated://wbgt",
+      "metadata": {
+        "simulation_mode": true,
+        "simulation_seed": 42,
+        "simulation_profile": {
+          "scenario": "direct_sun_accumulation",
+          "progress": 0.9166666666666666,
+          "break_curve": 3.7233631217505106e-25,
+          "sun_curve": 0.16126677879447454,
+          "solar_load": 2.626671053494884,
+          "scenario_curve": 0.8257815321416226
+        }
+      }
+    },
+    {
+      "city": "Shenzhen",
+      "reading_at": "2026-08-10T16:30:00+00:00",
+      "air_temperature_c": 34.85779100908118,
+      "relative_humidity_percent": 59.084830162058786,
+      "wind_speed_mps": 1.1355070907687401,
+      "wbgt_c": 30.660477901514383,
+      "source_name": "Simulated WBGT proxy",
+      "source_url": "simulated://wbgt",
+      "metadata": {
+        "simulation_mode": true,
+        "simulation_seed": 42,
+        "simulation_profile": {
+          "scenario": "direct_sun_accumulation",
+          "progress": 0.9444444444444444,
+          "break_curve": 1.603810890548638e-28,
+          "sun_curve": 0.09409245727536558,
+          "solar_load": 2.626671053494884,
+          "scenario_curve": 0.8818365915884518
+        }
+      }
+    },
+    {
+      "city": "Shenzhen",
+      "reading_at": "2026-08-10T16:45:00+00:00",
+      "air_temperature_c": 34.911314511889344,
+      "relative_humidity_percent": 59.12801043703516,
+      "wind_speed_mps": 1.1571581385642404,
+      "wbgt_c": 30.719543665221643,
+      "source_name": "Simulated WBGT proxy",
+      "source_url": "simulated://wbgt",
+      "metadata": {
+        "simulation_mode": true,
+        "simulation_seed": 42,
+        "simulation_profile": {
+          "scenario": "direct_sun_accumulation",
+          "progress": 0.9722222222222222,
+          "break_curve": 4.1900931944943974e-32,
+          "sun_curve": 0.03710219565007437,
+          "solar_load": 2.626671053494884,
+          "scenario_curve": 0.9399055106772521
+        }
+      }
+    },
+    {
+      "city": "Shenzhen",
+      "reading_at": "2026-08-10T17:00:00+00:00",
+      "air_temperature_c": 35.05312370819474,
+      "relative_humidity_percent": 58.90747236639868,
+      "wind_speed_mps": 1.1445732460343199,
+      "wbgt_c": 30.833751960714288,
+      "source_name": "Simulated WBGT proxy",
+      "source_url": "simulated://wbgt",
+      "metadata": {
+        "simulation_mode": true,
+        "simulation_seed": 42,
+        "simulation_profile": {
+          "scenario": "direct_sun_accumulation",
+          "progress": 1.0,
+          "break_curve": 6.639677199580735e-36,
+          "sun_curve": 3.3022857450354894e-22,
+          "solar_load": 2.626671053494884,
+          "scenario_curve": 1.0
+        }
+      }
+    }
+  ]
+}
