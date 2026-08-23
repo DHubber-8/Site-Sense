@@ -38,12 +38,16 @@ class EndToEndSmokeTest(unittest.TestCase):
     def test_real_ppe_and_heat_batches_reach_logging(self) -> None:
         repository_root = Path(__file__).resolve().parents[1]
         sample_image = repository_root / "data" / "sample_images" / "image1132.jpg"
-        ppe_model = (
-            repository_root / "runs" / "detect" / "train-10" / "weights" / "best.pt"
-        )
-        self.assertTrue(sample_image.exists(), f"missing sample image: {sample_image}")
-        self.assertTrue(ppe_model.exists(), f"missing PPE checkpoint: {ppe_model}")
+        ppe_model = repository_root / str(PpeDetectionAgent().model_path)
 
+        self.assertTrue(sample_image.exists(), f"missing sample image: {sample_image}")
+        if not ppe_model.exists():
+            self.skipTest(f"missing PPE checkpoint: {ppe_model}")
+
+        try:
+            import ultralytics  # noqa: F401
+        except ImportError:
+            self.skipTest("ultralytics is not installed; skipping end-to-end PPE inference")
         ppe_batch = self._run_stage(
             "PPE detection",
             lambda: PpeDetectionAgent(model_path=ppe_model).detect(sample_image),
