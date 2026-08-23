@@ -62,7 +62,9 @@ def assess_ppe(batch: PpeDetectionBatch) -> list[RiskAssessment]:
     for detection in batch.detections:
         severity = PPE_SEVERITY_BY_LABEL.get(detection.item)
         if severity is None:
-            continue
+            if detection.item in {"helmet", "hard_hat"}:
+                continue
+            raise ValueError(f"Unsupported PPE label: {detection.item}")
 
         assessments.append(
             RiskAssessment(
