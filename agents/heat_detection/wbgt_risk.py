@@ -19,6 +19,12 @@ WBGT_HIGH_RISK_THRESHOLD_C = 32.0
 
 DEFAULT_SIMULATED_SOURCE_NAME = "Simulated WBGT proxy"
 DEFAULT_SIMULATED_SOURCE_URL = "simulated://wbgt"
+WBGT_SCENARIOS = {
+    "baseline",
+    "direct_sun_accumulation",
+    "brief_spike",
+    "fatigue_partial_recovery",
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,6 +76,14 @@ def _ensure_aware(reading_at: datetime | None) -> datetime:
     if reading_at.tzinfo is None:
         return reading_at.replace(tzinfo=timezone.utc)
     return reading_at.astimezone(timezone.utc)
+
+
+def _validate_wbgt_scenario(scenario: str) -> str:
+    normalized = scenario.strip().lower()
+    if normalized not in WBGT_SCENARIOS:
+        allowed = ", ".join(sorted(WBGT_SCENARIOS))
+        raise ValueError(f"Unsupported WBGT scenario '{scenario}'. Supported scenarios: {allowed}")
+    return normalized
 
 
 def _stull_wet_bulb_temperature(air_temperature_c: float, relative_humidity_percent: float) -> float:
@@ -223,36 +237,127 @@ class SimulatedWBGTReadingSource:
         distance = abs(current_minutes - midpoint)
         return math.exp(-((distance / width) ** 2))
 
-    def _simulate_environment(self, city: str, reading_at: datetime) -> tuple[float, float, float, dict[str, float]]:
+    def _scenario_modifier(
+        self,
+        reading_at: datetime,
+        progress: float,
+        break_curve: float,
+        scenario: str,
+    ) -> tuple[float, float, float, float, dict[str, float]]:
+        if scenario == "baseline":
+            return 0.0, 0.0, 0.0, 0.0, {"scenario_curve": 0.0}
+
+        if scenario == "direct_sun_accumulation":
+            concave_rise = progress ** 2.2
+            sharp_break_drop = break_curve ** 0.45
+            return (
+                (5.1 * concave_rise) - (4.2 * sharp_break_drop),
+                (-8.0 * concave_rise) + (4.8 * sharp_break_drop),
+                (-0.65 * concave_rise) + (0.9 * sharp_break_drop),
+                (3.0 * concave_rise) - (2.9 * sharp_break_drop),
+                {
+                    "scenario_curve": concave_rise,
+                    "scenario_break_drop": sharp_break_drop,
+                },
+            )
+
+        if scenario == "brief_spike":
+            # A short-lived local hotspot with immediate return to a cooler baseline.
+            spike_center = 0.5556
+            spike_width = 0.022
+            spike = math.exp(-(((progress - spike_center) / spike_width) ** 2))
+            return (
+                -2.6 + (4.5 * spike),
+                2.2 - (3.6 * spike),
+                0.35 - (0.45 * spike),
+                -1.1 + (2.1 * spike),
+                {
+                    "scenario_curve": spike,
+                    "scenario_spike_center": spike_center,
+                    "scenario_spike_width": spike_width,
+                },
+            )
+
+        if scenario == "fatigue_partial_recovery":
+            start_minutes = self.workday_start.hour * 60 + self.workday_start.minute
+            current_minutes = reading_at.hour * 60 + reading_at.minute + (reading_at.second / 60.0)
+            minutes_since_start = current_minutes - start_minutes
+
+            cycle_start = 120.0
+            cycle_end = 285.0
+            load = 0.0
+            if minutes_since_start < cycle_start:
+                load = 0.0
+            elif minutes_since_start <= cycle_end:
+                local = minutes_since_start - cycle_start
+                if local <= 45.0:
+                    load = local / 45.0
+                elif local <= 60.0:
+                    # First rest dip: recover partially, never back to baseline.
+                    load = 1.0 - ((local - 45.0) / 15.0) * 0.4
+                elif local <= 105.0:
+                    load = 0.6 + ((local - 60.0) / 45.0) * 1.0
+                elif local <= 120.0:
+                    # Second rest dip: still above the first-cycle baseline.
+                    load = 1.6 - ((local - 105.0) / 15.0) * 0.5
+                else:
+                    load = 1.1 + ((local - 120.0) / 45.0) * 1.0
+            else:
+                # Residual fatigue remains elevated through the afternoon.
+                tail_progress = _clamp((minutes_since_start - cycle_end) / 120.0, 0.0, 1.0)
+                load = 2.1 - 0.7 * tail_progress
+
+            return (
+                2.1 * load,
+                -2.6 * load,
+                -0.25 * load,
+                1.5 * load,
+                {"scenario_curve": load},
+            )
+
+        # Kept defensive even though caller validates scenario names.
+        return 0.0, 0.0, 0.0, 0.0, {"scenario_curve": 0.0}
+
+    def _simulate_environment(self, city: str, reading_at: datetime, scenario: str = "baseline") -> tuple[float, float, float, dict[str, float]]:
         reading_date = reading_at.date()
         profile = self._profile_parameters(city, reading_date)
         progress = self._workday_fraction(reading_at)
         break_curve = self._break_fraction(reading_at)
         sun_curve = math.sin(math.pi * progress) ** 1.35
         wobble = math.sin((2.0 * math.pi * progress) + profile["phase"])
+        normalized_scenario = _validate_wbgt_scenario(scenario)
+        temp_delta, humidity_delta, wind_delta, solar_delta, scenario_metadata = self._scenario_modifier(
+            reading_at,
+            progress,
+            break_curve,
+            normalized_scenario,
+        )
 
         air_temperature_c = (
             profile["temp_base"]
             + profile["temp_amp"] * sun_curve
             - (profile["break_cooling"] * 1.8) * break_curve
             + 0.25 * wobble
+            + temp_delta
         )
         relative_humidity_percent = (
             profile["humidity_base"]
             - profile["humidity_amp"] * sun_curve
             + (profile["break_humidity_bump"] * 1.8) * break_curve
             + 1.2 * math.cos((2.0 * math.pi * progress) + profile["phase"] / 2.0)
+            + humidity_delta
         )
         wind_speed_mps = (
             profile["wind_base"]
             - profile["wind_amp"] * sun_curve
             + (profile["break_wind_bump"] * 1.6) * break_curve
             + 0.15 * math.sin((4.0 * math.pi * progress) + profile["phase"])
+            + wind_delta
         )
 
         relative_humidity_percent = _clamp(relative_humidity_percent, 30.0, 100.0)
         wind_speed_mps = max(0.2, wind_speed_mps)
-        solar_load = profile["solar_load"] + (2.1 * sun_curve) - (1.6 * break_curve)
+        solar_load = profile["solar_load"] + (2.1 * sun_curve) - (1.6 * break_curve) + solar_delta
         wbgt_c = compute_wbgt(air_temperature_c, relative_humidity_percent, wind_speed_mps, solar_load)
 
         return air_temperature_c, relative_humidity_percent, wind_speed_mps, {
@@ -260,15 +365,17 @@ class SimulatedWBGTReadingSource:
             "break_curve": break_curve,
             "sun_curve": sun_curve,
             "solar_load": solar_load,
+            "scenario": normalized_scenario,
+            **scenario_metadata,
             **profile,
             "wbgt_c": wbgt_c,
         }
 
-    def get_reading(self, city: str, reading_at: datetime | None = None) -> WBGTReading:
-        reading_at_utc = _ensure_aware(reading_at)
+    def _build_reading(self, city: str, reading_at_utc: datetime, scenario: str = "baseline") -> WBGTReading:
         air_temperature_c, relative_humidity_percent, wind_speed_mps, metadata = self._simulate_environment(
             city,
             reading_at_utc,
+            scenario=scenario,
         )
         wbgt_c = metadata["wbgt_c"]
         return WBGTReading(
@@ -284,23 +391,31 @@ class SimulatedWBGTReadingSource:
                 "simulation_mode": True,
                 "simulation_seed": self.seed,
                 "simulation_profile": {
+                    "scenario": metadata["scenario"],
                     "progress": metadata["progress"],
                     "break_curve": metadata["break_curve"],
                     "sun_curve": metadata["sun_curve"],
                     "solar_load": metadata["solar_load"],
+                    "scenario_curve": metadata.get("scenario_curve", 0.0),
                 },
             },
         )
+
+    def get_reading(self, city: str, reading_at: datetime | None = None) -> WBGTReading:
+        reading_at_utc = _ensure_aware(reading_at)
+        return self._build_reading(city, reading_at_utc, scenario="baseline")
 
     def generate_workday_trace(
         self,
         city: str,
         reading_date: date | None = None,
         sample_count: int = 6,
+        scenario: str = "baseline",
     ) -> list[WBGTReading]:
         reading_date = reading_date or datetime.now(timezone.utc).date()
         if sample_count < 2:
             raise ValueError("sample_count must be at least 2")
+        normalized_scenario = _validate_wbgt_scenario(scenario)
 
         start_dt = datetime.combine(reading_date, self.workday_start, tzinfo=timezone.utc)
         end_dt = datetime.combine(reading_date, self.workday_end, tzinfo=timezone.utc)
@@ -308,7 +423,11 @@ class SimulatedWBGTReadingSource:
         step_seconds = total_seconds / float(sample_count - 1)
 
         return [
-            self.get_reading(city, start_dt + timedelta(seconds=step_seconds * index))
+            self._build_reading(
+                city,
+                start_dt + timedelta(seconds=step_seconds * index),
+                scenario=normalized_scenario,
+            )
             for index in range(sample_count)
         ]
 

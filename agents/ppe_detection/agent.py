@@ -35,7 +35,7 @@ def _resolve_label(names: Any, class_id: int) -> str:
 
 def _extract_coordinates(box: Any) -> list[float]:
     coordinates = getattr(box, "xyxy", [])
-    if not coordinates:
+    if coordinates is None or len(coordinates) == 0:
         raise ValueError("YOLO box is missing xyxy coordinates")
 
     first_coordinates = coordinates[0]
