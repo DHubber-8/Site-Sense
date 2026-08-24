@@ -27,6 +27,7 @@ class RiskAssessment:
     recommended_actions: list[str]
     source_detail: dict[str, Any]
     assessed_at: datetime
+    requires_review: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -38,4 +39,5 @@ class RiskAssessment:
             "recommended_actions": list(self.recommended_actions),
             "source_detail": dict(self.source_detail),
             "assessed_at": self.assessed_at.isoformat(),
+            "requires_review": self.requires_review,
         }

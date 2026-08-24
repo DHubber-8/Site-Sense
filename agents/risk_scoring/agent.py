@@ -72,7 +72,9 @@ def _description(label: str, severity: Severity) -> str:
     return f"PPE violation detected: {label} ({severity.name.lower()} severity)"
 
 
-def assess_ppe(batch: PpeDetectionBatch) -> list[RiskAssessment]:
+def assess_ppe(
+    batch: PpeDetectionBatch, confidence_threshold: float = 0.5
+) -> list[RiskAssessment]:
     """Convert PPE violation detections into normalized risk assessments."""
 
     assessed_at = datetime.now(timezone.utc)
@@ -82,16 +84,29 @@ def assess_ppe(batch: PpeDetectionBatch) -> list[RiskAssessment]:
         if severity is None:
             raise ValueError(f"Unsupported PPE label: {detection.item}")
 
+        requires_review = detection.confidence < confidence_threshold
+        if requires_review:
+            severity = Severity.MINOR
+            description = (
+                f"Possible {detection.item} — low confidence, flagged for "
+                "site supervisor review"
+            )
+            recommended_actions = list(PPE_RECOMMENDED_ACTIONS[severity])
+        else:
+            description = _description(detection.item, severity)
+            recommended_actions = list(PPE_RECOMMENDED_ACTIONS[severity])
+
         assessments.append(
             RiskAssessment(
                 source="ppe",
                 severity=severity,
                 label=detection.item,
-                description=_description(detection.item, severity),
+                description=description,
                 zone=None,
-                recommended_actions=list(PPE_RECOMMENDED_ACTIONS[severity]),
+                recommended_actions=recommended_actions,
                 source_detail=detection.to_dict(),
                 assessed_at=assessed_at,
+                requires_review=requires_review,
             )
         )
 

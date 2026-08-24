@@ -67,6 +67,37 @@ class RiskScoringSmokeTest(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, rf"Unsupported PPE label: {label}"):
                     self.scoring_agent.assess(PpeDetectionBatch(detections=[detection]))
 
+    def test_ppe_scoring_low_confidence_flags_for_human_review(self) -> None:
+        detection = PpeDetection(
+            item="helmet",
+            confidence=0.49,
+            bounding_box=BoundingBox(1.0, 2.0, 11.0, 12.0),
+        )
+
+        assessments = self.scoring_agent.assess(PpeDetectionBatch(detections=[detection]))
+        assessment = next(item for item in assessments if item.source == "ppe")
+
+        self.assertTrue(assessment.requires_review)
+        self.assertEqual(assessment.severity, Severity.MINOR)
+        self.assertEqual(
+            assessment.description,
+            "Possible helmet — low confidence, flagged for site supervisor review",
+        )
+
+    def test_ppe_scoring_high_confidence_does_not_flag_for_review(self) -> None:
+        detection = PpeDetection(
+            item="no_helmet",
+            confidence=0.91,
+            bounding_box=BoundingBox(1.0, 2.0, 11.0, 12.0),
+        )
+
+        assessments = self.scoring_agent.assess(PpeDetectionBatch(detections=[detection]))
+        assessment = next(item for item in assessments if item.source == "ppe")
+
+        self.assertFalse(assessment.requires_review)
+        self.assertEqual(assessment.severity, Severity.CRITICAL)
+        self.assertEqual(assessment.description, "PPE violation detected: no_helmet (critical severity)")
+
     def test_ppe_coverage_all_items_confirmed_worn_has_no_coverage_alerts(self) -> None:
         detections = [
             PpeDetection(item="helmet", confidence=0.95, bounding_box=BoundingBox(1.0, 2.0, 11.0, 12.0)),

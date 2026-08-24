@@ -23,10 +23,17 @@ class AlertRoutingAgent:
     def route(self, assessment: RiskAssessment) -> RoutedAlert | None:
         """Return a routing decision, or None when no action is needed."""
 
-        if assessment.severity is Severity.NONE:
+        if assessment.severity is Severity.NONE and not assessment.requires_review:
             return None
 
-        if assessment.severity.value >= self.notify_urgent_threshold.value:
+        if assessment.requires_review:
+            # Low-confidence detections need a supervisor's judgment, not silent
+            # logging, so they must be escalated at least to a notify action.
+            if assessment.severity.value >= self.notify_urgent_threshold.value:
+                decision = "notify_urgent"
+            else:
+                decision = "notify"
+        elif assessment.severity.value >= self.notify_urgent_threshold.value:
             decision = "notify_urgent"
         elif assessment.severity.value >= self.notify_threshold.value:
             decision = "notify"

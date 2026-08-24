@@ -65,6 +65,27 @@ class AlertRoutingSmokeTest(unittest.TestCase):
             ["log_only", "notify", "notify_urgent"],
         )
 
+    def test_review_required_minor_alert_is_not_silently_logged(self) -> None:
+        agent = AlertRoutingAgent()
+        assessment = self._assessment(Severity.MINOR)
+        assessment = RiskAssessment(
+            source=assessment.source,
+            severity=assessment.severity,
+            label=assessment.label,
+            description=assessment.description,
+            zone=assessment.zone,
+            recommended_actions=assessment.recommended_actions,
+            source_detail=assessment.source_detail,
+            assessed_at=assessment.assessed_at,
+            requires_review=True,
+        )
+
+        routed = agent.route(assessment)
+
+        self.assertIsNotNone(routed)
+        self.assertEqual(routed.decision, "notify")
+        self.assertNotEqual(routed.decision, "log_only")
+
 
 if __name__ == "__main__":
     unittest.main()
