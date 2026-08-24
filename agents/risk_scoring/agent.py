@@ -183,6 +183,7 @@ def assess_ppe_coverage(batch: PpeDetectionBatch) -> list[RiskAssessment]:
                     "observed_labels": sorted(observed_labels),
                 },
                 assessed_at=assessed_at,
+                requires_review=True,
             )
         )
 
