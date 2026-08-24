@@ -131,6 +131,7 @@ class RiskScoringSmokeTest(unittest.TestCase):
             coverage_assessments[0].description,
             "Could not verify gloves - flag for manual check",
         )
+        self.assertTrue(coverage_assessments[0].requires_review)
         self.assertEqual(risk_scoring.overall_coverage_tier(assessments), 3)
 
     def test_ppe_coverage_unaccounted_vest_uses_minor_coverage_path(self) -> None:
@@ -157,6 +158,7 @@ class RiskScoringSmokeTest(unittest.TestCase):
             any(item.label == "no_vest" for item in direct_ppe_assessments),
             "model has no no_vest class; vest gap must be coverage-based",
         )
+        self.assertTrue(coverage_assessments[0].requires_review)
         self.assertEqual(risk_scoring.overall_coverage_tier(assessments), 3)
 
     def test_ppe_coverage_mixed_batch_rolls_up_tier_from_layer_1_results(self) -> None:
