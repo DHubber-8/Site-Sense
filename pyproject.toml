@@ -9,6 +9,8 @@ dependencies = [
     "numpy>=2.0.0",
     "pillow>=12.3.0",
     "ultralytics>=8.3.0",
+    "streamlit>=1.62.0",
+    "plotly>=6.9.0",
 ]
 
 [dependency-groups]
