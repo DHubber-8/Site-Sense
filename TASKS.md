@@ -47,7 +47,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [x] Build risk-scoring agent using C's heat thresholds (handles both Level 1/2/3 and Normal/Caution/High Risk/Extreme naming schemes) — **E1**
 - [x] Build alert-routing agent (severity-based: log-only vs. active notification) — **E1**
 - [x] Build compliance/incident logging store — **E1**
-- [ ] **Fix:** `agents/risk_scoring/agent.py`'s `PPE_SEVERITY_BY_LABEL` includes labels (`chin_strap_unfastened`, `vest_partially_covered`, `damaged_ppe`) that don't match the trained model's actual output classes — verify against `model.names` on the real checkpoint and correct — **E1**
+- [x] **Fix:** `agents/risk_scoring/agent.py`'s `PPE_SEVERITY_BY_LABEL` includes labels (`chin_strap_unfastened`, `vest_partially_covered`, `damaged_ppe`) that don't match the trained model's actual output classes — verify against `model.names` on the real checkpoint and correct — **E1**
 - [x] Resolve `specs/` duplicate plan files (`risk_scoring_plan.md`, `alert_routing_plan.md`, `logging_plan.md` each duplicate an existing `plan.md`) — **E1**
 
 ### Validation
@@ -55,7 +55,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [ ] Review false positives/negatives from test run (both PPE and heat), adjust rules — **C**
 
 ### End of Week 2 checkpoint
-- [~] Full pipeline runs end-to-end for both detection types — **All** — code complete, pending the label-verification fix above and one real (non-skipped) end-to-end run
+- [x] Full pipeline runs end-to-end for both detection types — **All** — confirmed with a real run against the fine-tuned checkpoint (`runs/detect/train-10/weights/best.pt`) on a real sample image: 5 raw detections → 9 normalized assessments (5 direct + 4 PPE-coverage), correctly split across severity tiers, with the confidence-based review flag firing on low-confidence detections as designed. Full trace kept in `specs/evidence/real_checkpoint_run.md`.
 
 ---
 
