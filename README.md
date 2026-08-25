@@ -74,6 +74,14 @@ Run the test suite:
 uv run pytest
 ```
 
+Run the manager dashboard locally:
+```bash
+cd Site-Sense
+uv run streamlit run dashboard/app.py
+```
+
+The dashboard reads the existing SQLite logging store in `data/site_sense.db` and will seed a small demo dataset automatically if no alerts have been recorded yet.
+
 Run the PPE detection agent against a sample image — see `agents/ppe_detection/README.md` for usage and current checkpoint notes.
 
 ## Project docs
