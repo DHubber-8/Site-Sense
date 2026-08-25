@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import unittest
 from datetime import datetime, timezone
+from unittest.mock import Mock
 
+import dashboard.app as app
 from agents.alert_routing.schema import RoutedAlert
 from agents.logging.schema import LogRecord
 from agents.risk_scoring.schema import RiskAssessment, Severity
@@ -103,6 +105,14 @@ class DashboardLogicSmokeTest(unittest.TestCase):
         self.assertEqual(summary["total_active"], 2)
         self.assertEqual(summary["review_items"][0].label, "no_helmet")
         self.assertEqual(summary["review_items"][1].label, "Extreme")
+
+    def test_render_metric_card_omits_delta_and_renders_muted_caption(self) -> None:
+        container = Mock()
+
+        app._render_metric_card(container, "Active alerts", "4", "Require attention")
+
+        container.metric.assert_called_once_with("Active alerts", "4")
+        self.assertGreaterEqual(container.markdown.call_count, 1)
 
 
 if __name__ == "__main__":
