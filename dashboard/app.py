@@ -22,7 +22,7 @@ from agents.risk_scoring.schema import Severity
 DATABASE_PATH = str(PROJECT_ROOT / "data" / "site_sense.db")
 SOURCE_LABELS = {"ppe": "PPE", "ppe_coverage": "PPE coverage", "heat_compliance": "Heat compliance", "heat_wbgt": "Heat exposure"}
 STATUS_LABELS = {"active": "Active", "acknowledged": "Acknowledged", "resolved": "Resolved"}
-SEVERITY_COLORS = {"Critical": ("#b42318", "#fff0ee"), "Moderate": ("#a15c00", "#fff7e6"), "Minor": ("#315f78", "#edf7fb")}
+SEVERITY_COLORS = {"Critical": ("#8f1f1f", "#f9e4e3"), "Moderate": ("#8a5a1d", "#f9ecd0"), "Minor": ("#355d7a", "#e8f1f7")}
 BUILT_IN_GUIDELINES: dict[str, dict[str, Any]] = {
     "no_helmet": {"title": "No helmet response protocol", "steps": ["Stop the worker from entering or continuing in the active work zone", "Issue a compliant safety helmet before work resumes", "Notify the site safety manager and record the intervention"]},
     "no_gloves": {"title": "No gloves response protocol", "steps": ["Pause the task involving hand or material hazards", "Issue task-appropriate protective gloves", "Confirm the worker has fitted the gloves before restarting"]},
@@ -119,6 +119,11 @@ def _status_badge(status: str) -> str:
     return f'<span class="status-badge status-{status}">{STATUS_LABELS[status]}</span>'
 
 
+def _render_metric_card(container: Any, label: str, value: str | int, caption: str) -> None:
+    container.metric(label, str(value))
+    container.markdown(f'<div class="metric-caption">{html.escape(caption)}</div>', unsafe_allow_html=True)
+
+
 def _inject_css() -> None:
     st.markdown("""
     <style>
@@ -128,12 +133,12 @@ def _inject_css() -> None:
     [data-testid="stSidebar"] { background:#fff; border-right:1px solid var(--line); }
     [data-testid="stSidebarNav"] { display:block; } [data-testid="stSidebarNav"] a { color:var(--navy)!important; } [data-testid="stHeader"] { background:transparent; } [data-testid="stToolbar"] { visibility:hidden; }
     h1,h2,h3,h4,p,span,label,div { font-family:'DM Sans',sans-serif; } h1 { font-size:2rem!important; color:var(--navy)!important; } h2 { font-size:1.35rem!important; color:var(--navy)!important; }
-    [data-testid="stMetric"] { background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:1.1rem; box-shadow:0 2px 8px rgba(16,27,45,.04); } [data-testid="stMetricLabel"] { color:var(--muted); } [data-testid="stMetricValue"] { color:var(--navy); }
+    [data-testid="stMetric"] { background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:1.1rem; box-shadow:0 2px 8px rgba(16,27,45,.04); } [data-testid="stMetricLabel"] { color:var(--muted); } [data-testid="stMetricValue"] { color:var(--navy); } .metric-caption { color:var(--muted); font-size:.76rem; margin-top:.45rem; line-height:1.35; }
     .brand { display:flex; align-items:center; gap:.7rem; padding:.4rem 0 1.5rem; color:var(--navy); font-size:1.15rem; font-weight:700; } .brand-mark { display:grid; place-items:center; width:2rem; height:2rem; border-radius:5px; background:var(--navy); color:#fff; font-weight:700; }
     .eyebrow { color:var(--muted); font-size:.72rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; } .page-intro { color:var(--muted); margin-top:-.65rem; margin-bottom:1.5rem; }
     .surface { background:var(--surface); border:1px solid var(--line); border-radius:8px; box-shadow:0 2px 8px rgba(16,27,45,.04); } .section-head { display:flex; align-items:center; justify-content:space-between; padding:1.25rem 1.35rem; border-bottom:1px solid var(--line); } .section-head h2 { margin:0; } .section-head p { color:var(--muted); margin:.2rem 0 0; font-size:.88rem; }
     .count { background:#edf2f6; color:var(--navy); padding:.25rem .55rem; border-radius:999px; font-family:'IBM Plex Mono',monospace; font-size:.8rem; } .badge,.status-badge { display:inline-block; border-radius:2px; padding:.24rem .48rem; font-size:.72rem; font-weight:700; white-space:nowrap; } .status-badge { border:1px solid; border-radius:999px; }
-    .status-active { color:var(--red); background:#fff0ee; border-color:#f2b8b5; } .status-acknowledged { color:var(--amber); background:#fff7e6; border-color:#f2d18d; } .status-resolved { color:var(--blue); background:#edf7fb; border-color:#a9d5df; }
+    .status-active { color:#8a2727; background:#f7e3e3; border-color:#d8a6a6; } .status-acknowledged { color:#7d5b1f; background:#f6ebd2; border-color:#d8bf7d; } .status-resolved { color:#355d7a; background:#eaf4f9; border-color:#a7c8d9; }
     .alert-row { padding:1rem 1.35rem; border-bottom:1px solid var(--line); } .alert-row:last-child { border-bottom:0; } .alert-row.critical { border-left:4px solid var(--red); padding-left:1.1rem; } .alert-title { display:flex; align-items:center; gap:.55rem; font-weight:700; color:var(--navy); } .alert-meta { color:var(--muted); font-family:'IBM Plex Mono',monospace; font-size:.76rem; margin:.45rem 0 .8rem; } .muted { color:var(--muted); } .empty { text-align:center; padding:3rem 1rem; color:var(--muted); } .mono { font-family:'IBM Plex Mono',monospace; } .mobile-brand { display:none; } button { border-radius:5px!important; }
     button { background:#fff!important; color:var(--navy)!important; border:1px solid var(--line)!important; } button p { color:inherit!important; } button[kind="primary"] { background:var(--navy)!important; color:#fff!important; border-color:var(--navy)!important; } button[kind="primary"] p { color:#fff!important; }
     @media (max-width:800px) { .mobile-brand { display:block; } .page-intro { margin-bottom:1rem; } }
@@ -242,10 +247,10 @@ def render_dashboard() -> None:
     ppe_positive = sum(1 for record in ppe_records if not _assessment(record).label.startswith("no_"))
     compliance = round(100 * ppe_positive / len(ppe_records)) if ppe_records else 0
     metrics = st.columns(4)
-    metrics[0].metric("Active alerts", len(active), "Require attention")
-    metrics[1].metric("PPE compliance", f"{compliance}%", "Across recorded PPE events")
-    metrics[2].metric("Heat risk exposure", len([r for r in heat_records if _assessment(r).severity is not Severity.NONE]), "Workers above safe threshold")
-    metrics[3].metric("Incidents today", len(today), "Events logged today")
+    _render_metric_card(metrics[0], "Active alerts", len(active), "Require attention")
+    _render_metric_card(metrics[1], "PPE compliance", f"{compliance}%", "Across recorded PPE events")
+    _render_metric_card(metrics[2], "Heat risk exposure", len([r for r in heat_records if _assessment(r).severity is not Severity.NONE]), "Workers above safe threshold")
+    _render_metric_card(metrics[3], "Incidents today", len(today), "Events logged today")
     left, right = st.columns([1.05, .95])
     with left:
         st.markdown(f'<div class="surface"><div class="section-head"><div><h2>Active alerts</h2><p>Latest unresolved incidents</p></div><span class="count">{len(active)}</span></div>', unsafe_allow_html=True)
