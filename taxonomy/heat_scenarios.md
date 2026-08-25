@@ -27,3 +27,13 @@ A worker continously worked for 3 cycles of 40 minute each with 10 minutes of wa
 Shape: 3 rising segments with partial dip 
 
 Labour intensity: Caution (level 2)
+
+## Sustained Heat Impact
+
+A worker continuously worked under direct sunlight without taking a break. As the heat increases, the WBGT gradally crosses the extreme threshold. The worker continues working until the system detect the sustained heat exposure. 
+
+Shape: Gradual upward trend and reaches peak until the worker takes a break/moves to shade showing a smooth decline
+
+The system should recognise this as a sustained heat risk event, and trigger warning to stop work and take a rest break. 
+
+Labour intensity: High risk and extreme (level 3 and 4)
