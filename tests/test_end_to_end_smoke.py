@@ -77,7 +77,9 @@ class EndToEndSmokeTest(unittest.TestCase):
             "fatigue_partial_recovery": scenario_dir / "fatigue_partial_recovery.json",
         }
         for name, path in scenario_files.items():
-            self.assertTrue(path.exists(), f"missing WBGT scenario file for {name}: {path}")
+            self.assertTrue(
+                path.exists(), f"missing WBGT scenario file for {name}: {path}"
+            )
 
         if not ppe_model.exists():
             self.skipTest(f"missing PPE checkpoint: {ppe_model}")
@@ -85,7 +87,9 @@ class EndToEndSmokeTest(unittest.TestCase):
         try:
             import ultralytics  # noqa: F401
         except ImportError:
-            self.skipTest("ultralytics is not installed; skipping end-to-end PPE inference")
+            self.skipTest(
+                "ultralytics is not installed; skipping end-to-end PPE inference"
+            )
 
         verification_lines: list[str] = []
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -116,7 +120,9 @@ class EndToEndSmokeTest(unittest.TestCase):
                 )
                 routed = self._run_stage(
                     f"alert routing PPE ({image_path.name})",
-                    lambda assessments=assessments: routing_agent.route_many(assessments),
+                    lambda assessments=assessments: routing_agent.route_many(
+                        assessments
+                    ),
                 )
                 self._run_stage(
                     f"logging PPE ({image_path.name})",
@@ -169,21 +175,29 @@ class EndToEndSmokeTest(unittest.TestCase):
                 for _ in readings:
                     wbgt_batch = self._run_stage(
                         f"WBGT assess ({scenario_name})",
-                        lambda wbgt_agent=wbgt_agent: wbgt_agent.assess(zone_id="zone-A"),
+                        lambda wbgt_agent=wbgt_agent: wbgt_agent.assess(
+                            zone_id="zone-A"
+                        ),
                     )
-                    scenario_alert_levels.extend(alert.level for alert in wbgt_batch.alerts)
+                    scenario_alert_levels.extend(
+                        alert.level for alert in wbgt_batch.alerts
+                    )
 
                     assessments = self._run_stage(
                         f"risk scoring WBGT ({scenario_name})",
                         lambda wbgt_batch=wbgt_batch: scoring_agent.assess(wbgt_batch),
                     )
                     scenario_critical_alert_count += sum(
-                        1 for assessment in assessments if assessment.severity.name == "CRITICAL"
+                        1
+                        for assessment in assessments
+                        if assessment.severity.name == "CRITICAL"
                     )
 
                     routed = self._run_stage(
                         f"alert routing WBGT ({scenario_name})",
-                        lambda assessments=assessments: routing_agent.route_many(assessments),
+                        lambda assessments=assessments: routing_agent.route_many(
+                            assessments
+                        ),
                     )
                     self._run_stage(
                         f"logging WBGT ({scenario_name})",
@@ -198,7 +212,10 @@ class EndToEndSmokeTest(unittest.TestCase):
                     )
                 if wbgt_expected[scenario_name].get("needs_at_least_caution"):
                     self.assertTrue(
-                        any(level in {"Caution", "High Risk", "Extreme"} for level in scenario_alert_levels),
+                        any(
+                            level in {"Caution", "High Risk", "Extreme"}
+                            for level in scenario_alert_levels
+                        ),
                         f"{scenario_name} must reach at least Caution-level WBGT alert",
                     )
                 if wbgt_expected[scenario_name].get("no_critical"):
@@ -255,8 +272,12 @@ class EndToEndSmokeTest(unittest.TestCase):
                 )
 
             # 4) Aggregate sanity checks directly from logging.
-            queried_records = self._run_stage("logging query", lambda: logging_agent.recent(limit=5000))
-            self.assertGreater(len(queried_records), 0, "logging should contain at least one record")
+            queried_records = self._run_stage(
+                "logging query", lambda: logging_agent.recent(limit=5000)
+            )
+            self.assertGreater(
+                len(queried_records), 0, "logging should contain at least one record"
+            )
             counts_by_source: dict[str, int] = {}
             for record in queried_records:
                 source = record.routed_alert.assessment.source

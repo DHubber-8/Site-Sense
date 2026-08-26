@@ -22,7 +22,8 @@ class SeedDemoDataSmokeTest(unittest.TestCase):
             assessment
             for assessment in assessments
             if assessment.source == "heat_wbgt"
-            and abs(assessment.source_detail.get("wbgt_c", 0.0) - 29.81056977436095) < 1e-6
+            and abs(assessment.source_detail.get("wbgt_c", 0.0) - 29.81056977436095)
+            < 1e-6
         ]
 
         self.assertEqual(brief_spike_alerts, [])

@@ -37,7 +37,9 @@ def _resolve_output_dir() -> Path:
     return output_dir
 
 
-def _build_export_payload(scenario: str, readings: list[dict[str, object]]) -> dict[str, object]:
+def _build_export_payload(
+    scenario: str, readings: list[dict[str, object]]
+) -> dict[str, object]:
     return {
         "metadata": {
             "simulated_data": True,
@@ -66,7 +68,9 @@ def main() -> None:
             sample_count=DEFAULT_SAMPLE_COUNT,
             scenario=scenario,
         )
-        payload = _build_export_payload(scenario, [reading.to_dict() for reading in trace])
+        payload = _build_export_payload(
+            scenario, [reading.to_dict() for reading in trace]
+        )
 
         output_path = output_dir / f"{scenario}.json"
         output_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")

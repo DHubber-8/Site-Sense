@@ -82,29 +82,40 @@ def _validate_wbgt_scenario(scenario: str) -> str:
     normalized = scenario.strip().lower()
     if normalized not in WBGT_SCENARIOS:
         allowed = ", ".join(sorted(WBGT_SCENARIOS))
-        raise ValueError(f"Unsupported WBGT scenario '{scenario}'. Supported scenarios: {allowed}")
+        raise ValueError(
+            f"Unsupported WBGT scenario '{scenario}'. Supported scenarios: {allowed}"
+        )
     return normalized
 
 
-def _stull_wet_bulb_temperature(air_temperature_c: float, relative_humidity_percent: float) -> float:
+def _stull_wet_bulb_temperature(
+    air_temperature_c: float, relative_humidity_percent: float
+) -> float:
     humidity = _clamp(relative_humidity_percent, 1.0, 100.0)
     return (
         air_temperature_c * math.atan(0.151977 * math.sqrt(humidity + 8.313659))
         + math.atan(air_temperature_c + humidity)
         - math.atan(humidity - 1.676331)
-        + 0.00391838 * (humidity ** 1.5) * math.atan(0.023101 * humidity)
+        + 0.00391838 * (humidity**1.5) * math.atan(0.023101 * humidity)
         - 4.686035
     )
 
 
-def compute_wbgt(air_temperature_c: float, relative_humidity_percent: float, wind_speed_mps: float, solar_load: float) -> float:
+def compute_wbgt(
+    air_temperature_c: float,
+    relative_humidity_percent: float,
+    wind_speed_mps: float,
+    solar_load: float,
+) -> float:
     """Compute a simulated WBGT-like proxy from synthetic environmental inputs.
 
     This is not a live sensor model and should be treated as simulated output
     only, even when the data shape is compatible with a real sensor contract.
     """
 
-    wet_bulb_c = _stull_wet_bulb_temperature(air_temperature_c, relative_humidity_percent)
+    wet_bulb_c = _stull_wet_bulb_temperature(
+        air_temperature_c, relative_humidity_percent
+    )
     globe_temperature_c = air_temperature_c + solar_load - (0.7 * wind_speed_mps)
     return 0.7 * wet_bulb_c + 0.2 * air_temperature_c + 0.1 * globe_temperature_c
 
@@ -115,9 +126,16 @@ def _regularity_actions(level: str) -> list[str]:
     if level == "Caution":
         return ["Increase hydration and more breaks"]
     if level == "High Risk":
-        return ["Reduce workload", "Increase rest frequency", "Monitor worker temperature closely"]
+        return [
+            "Reduce workload",
+            "Increase rest frequency",
+            "Monitor worker temperature closely",
+        ]
     if level == "Extreme":
-        return ["Recommend suspension of heavy outdoor work", "Move workers to a shaded or cooler area"]
+        return [
+            "Recommend suspension of heavy outdoor work",
+            "Move workers to a shaded or cooler area",
+        ]
     raise ValueError(f"Unsupported WBGT level: {level}")
 
 
@@ -137,9 +155,19 @@ def _classify_wbgt_level(wbgt_c: float) -> tuple[str, str, float, float | None]:
     if wbgt_c < WBGT_NORMAL_THRESHOLD_C:
         return "Normal", "Normal Heat Risk", 0.0, WBGT_NORMAL_THRESHOLD_C
     if wbgt_c < WBGT_CAUTION_THRESHOLD_C:
-        return "Caution", "Heat Caution", WBGT_NORMAL_THRESHOLD_C, WBGT_CAUTION_THRESHOLD_C
+        return (
+            "Caution",
+            "Heat Caution",
+            WBGT_NORMAL_THRESHOLD_C,
+            WBGT_CAUTION_THRESHOLD_C,
+        )
     if wbgt_c <= WBGT_HIGH_RISK_THRESHOLD_C:
-        return "High Risk", "High Heat Risk", WBGT_CAUTION_THRESHOLD_C, WBGT_HIGH_RISK_THRESHOLD_C
+        return (
+            "High Risk",
+            "High Heat Risk",
+            WBGT_CAUTION_THRESHOLD_C,
+            WBGT_HIGH_RISK_THRESHOLD_C,
+        )
     return "Extreme", "Extreme Heat Risk", WBGT_HIGH_RISK_THRESHOLD_C, None
 
 
@@ -170,7 +198,9 @@ def _has_sustained_elevation(
 def classify_wbgt_risk(reading: WBGTReading) -> WBGTRiskAlert:
     # SIMULATED OUTPUT ONLY: the classification is based on the synthetic WBGT
     # proxy produced in this module, not on a live field measurement.
-    level, title, threshold_min_c, threshold_max_c = _classify_wbgt_level(reading.wbgt_c)
+    level, title, threshold_min_c, threshold_max_c = _classify_wbgt_level(
+        reading.wbgt_c
+    )
     return WBGTRiskAlert(
         city=reading.city,
         reading_at=reading.reading_at,
@@ -224,14 +254,18 @@ class SimulatedWBGTReadingSource:
     def _workday_fraction(self, reading_at: datetime) -> float:
         start_minutes = self.workday_start.hour * 60 + self.workday_start.minute
         end_minutes = self.workday_end.hour * 60 + self.workday_end.minute
-        current_minutes = reading_at.hour * 60 + reading_at.minute + (reading_at.second / 60.0)
+        current_minutes = (
+            reading_at.hour * 60 + reading_at.minute + (reading_at.second / 60.0)
+        )
         span = max(1.0, float(end_minutes - start_minutes))
         return _clamp((current_minutes - start_minutes) / span, 0.0, 1.0)
 
     def _break_fraction(self, reading_at: datetime) -> float:
         break_start_minutes = self.break_start.hour * 60 + self.break_start.minute
         break_end_minutes = self.break_end.hour * 60 + self.break_end.minute
-        current_minutes = reading_at.hour * 60 + reading_at.minute + (reading_at.second / 60.0)
+        current_minutes = (
+            reading_at.hour * 60 + reading_at.minute + (reading_at.second / 60.0)
+        )
         midpoint = (break_start_minutes + break_end_minutes) / 2.0
         width = max(15.0, (break_end_minutes - break_start_minutes) / 2.0)
         distance = abs(current_minutes - midpoint)
@@ -248,8 +282,8 @@ class SimulatedWBGTReadingSource:
             return 0.0, 0.0, 0.0, 0.0, {"scenario_curve": 0.0}
 
         if scenario == "direct_sun_accumulation":
-            concave_rise = progress ** 2.2
-            sharp_break_drop = break_curve ** 0.45
+            concave_rise = progress**2.2
+            sharp_break_drop = break_curve**0.45
             return (
                 (5.1 * concave_rise) - (4.2 * sharp_break_drop),
                 (-8.0 * concave_rise) + (4.8 * sharp_break_drop),
@@ -280,7 +314,9 @@ class SimulatedWBGTReadingSource:
 
         if scenario == "fatigue_partial_recovery":
             start_minutes = self.workday_start.hour * 60 + self.workday_start.minute
-            current_minutes = reading_at.hour * 60 + reading_at.minute + (reading_at.second / 60.0)
+            current_minutes = (
+                reading_at.hour * 60 + reading_at.minute + (reading_at.second / 60.0)
+            )
             minutes_since_start = current_minutes - start_minutes
 
             cycle_start = 120.0
@@ -304,7 +340,9 @@ class SimulatedWBGTReadingSource:
                     load = 1.1 + ((local - 120.0) / 45.0) * 1.0
             else:
                 # Residual fatigue remains elevated through the afternoon.
-                tail_progress = _clamp((minutes_since_start - cycle_end) / 120.0, 0.0, 1.0)
+                tail_progress = _clamp(
+                    (minutes_since_start - cycle_end) / 120.0, 0.0, 1.0
+                )
                 load = 2.1 - 0.7 * tail_progress
 
             return (
@@ -318,7 +356,9 @@ class SimulatedWBGTReadingSource:
         # Kept defensive even though caller validates scenario names.
         return 0.0, 0.0, 0.0, 0.0, {"scenario_curve": 0.0}
 
-    def _simulate_environment(self, city: str, reading_at: datetime, scenario: str = "baseline") -> tuple[float, float, float, dict[str, float]]:
+    def _simulate_environment(
+        self, city: str, reading_at: datetime, scenario: str = "baseline"
+    ) -> tuple[float, float, float, dict[str, float]]:
         reading_date = reading_at.date()
         profile = self._profile_parameters(city, reading_date)
         progress = self._workday_fraction(reading_at)
@@ -326,11 +366,13 @@ class SimulatedWBGTReadingSource:
         sun_curve = math.sin(math.pi * progress) ** 1.35
         wobble = math.sin((2.0 * math.pi * progress) + profile["phase"])
         normalized_scenario = _validate_wbgt_scenario(scenario)
-        temp_delta, humidity_delta, wind_delta, solar_delta, scenario_metadata = self._scenario_modifier(
-            reading_at,
-            progress,
-            break_curve,
-            normalized_scenario,
+        temp_delta, humidity_delta, wind_delta, solar_delta, scenario_metadata = (
+            self._scenario_modifier(
+                reading_at,
+                progress,
+                break_curve,
+                normalized_scenario,
+            )
         )
 
         air_temperature_c = (
@@ -357,25 +399,41 @@ class SimulatedWBGTReadingSource:
 
         relative_humidity_percent = _clamp(relative_humidity_percent, 30.0, 100.0)
         wind_speed_mps = max(0.2, wind_speed_mps)
-        solar_load = profile["solar_load"] + (2.1 * sun_curve) - (1.6 * break_curve) + solar_delta
-        wbgt_c = compute_wbgt(air_temperature_c, relative_humidity_percent, wind_speed_mps, solar_load)
+        solar_load = (
+            profile["solar_load"]
+            + (2.1 * sun_curve)
+            - (1.6 * break_curve)
+            + solar_delta
+        )
+        wbgt_c = compute_wbgt(
+            air_temperature_c, relative_humidity_percent, wind_speed_mps, solar_load
+        )
 
-        return air_temperature_c, relative_humidity_percent, wind_speed_mps, {
-            "progress": progress,
-            "break_curve": break_curve,
-            "sun_curve": sun_curve,
-            "solar_load": solar_load,
-            "scenario": normalized_scenario,
-            **scenario_metadata,
-            **profile,
-            "wbgt_c": wbgt_c,
-        }
+        return (
+            air_temperature_c,
+            relative_humidity_percent,
+            wind_speed_mps,
+            {
+                "progress": progress,
+                "break_curve": break_curve,
+                "sun_curve": sun_curve,
+                "solar_load": solar_load,
+                "scenario": normalized_scenario,
+                **scenario_metadata,
+                **profile,
+                "wbgt_c": wbgt_c,
+            },
+        )
 
-    def _build_reading(self, city: str, reading_at_utc: datetime, scenario: str = "baseline") -> WBGTReading:
-        air_temperature_c, relative_humidity_percent, wind_speed_mps, metadata = self._simulate_environment(
-            city,
-            reading_at_utc,
-            scenario=scenario,
+    def _build_reading(
+        self, city: str, reading_at_utc: datetime, scenario: str = "baseline"
+    ) -> WBGTReading:
+        air_temperature_c, relative_humidity_percent, wind_speed_mps, metadata = (
+            self._simulate_environment(
+                city,
+                reading_at_utc,
+                scenario=scenario,
+            )
         )
         wbgt_c = metadata["wbgt_c"]
         return WBGTReading(
@@ -417,7 +475,9 @@ class SimulatedWBGTReadingSource:
             raise ValueError("sample_count must be at least 2")
         normalized_scenario = _validate_wbgt_scenario(scenario)
 
-        start_dt = datetime.combine(reading_date, self.workday_start, tzinfo=timezone.utc)
+        start_dt = datetime.combine(
+            reading_date, self.workday_start, tzinfo=timezone.utc
+        )
         end_dt = datetime.combine(reading_date, self.workday_end, tzinfo=timezone.utc)
         total_seconds = max(1.0, (end_dt - start_dt).total_seconds())
         step_seconds = total_seconds / float(sample_count - 1)
@@ -446,7 +506,9 @@ class WBGTRiskAgent:
     min_consecutive_readings: int = 3
     elevated_threshold_c: float = WBGT_NORMAL_THRESHOLD_C
     max_history_minutes: int = 180
-    _reading_history: dict[str, deque[WBGTReading]] = field(default_factory=lambda: defaultdict(deque), init=False, repr=False)
+    _reading_history: dict[str, deque[WBGTReading]] = field(
+        default_factory=lambda: defaultdict(deque), init=False, repr=False
+    )
 
     def _resolve_city(self, city: str | None) -> str:
         resolved_city = (city or self.site_city or "").strip()

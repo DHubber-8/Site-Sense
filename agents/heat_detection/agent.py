@@ -34,20 +34,44 @@ class WeatherForecastClient(Protocol):
         raise NotImplementedError
 
 
-def _build_openweather_request_url(base_url: str, api_key: str, city: str, units: str) -> str:
+def _build_openweather_request_url(
+    base_url: str, api_key: str, city: str, units: str
+) -> str:
     query_string = urlencode({"q": city, "appid": api_key, "units": units})
     return f"{base_url}?{query_string}"
 
 
 def _redact_openweather_source_url(request_url: str) -> str:
     parsed_url = urlsplit(request_url)
-    filtered_query = [(key, value) for key, value in parse_qsl(parsed_url.query, keep_blank_values=True) if key != "appid"]
+    filtered_query = [
+        (key, value)
+        for key, value in parse_qsl(parsed_url.query, keep_blank_values=True)
+        if key != "appid"
+    ]
     redacted_query = urlencode(filtered_query)
-    return urlunsplit((parsed_url.scheme, parsed_url.netloc, parsed_url.path, redacted_query, parsed_url.fragment))
+    return urlunsplit(
+        (
+            parsed_url.scheme,
+            parsed_url.netloc,
+            parsed_url.path,
+            redacted_query,
+            parsed_url.fragment,
+        )
+    )
 
 
-def _build_openmeteo_geocoding_url(base_url: str, city: str = 'CN', country_code: str = 'CN') -> str:
-    query_string = urlencode({"name": city, "count": 1, "language": "en", "format": "json", "country_code": country_code})
+def _build_openmeteo_geocoding_url(
+    base_url: str, city: str = "CN", country_code: str = "CN"
+) -> str:
+    query_string = urlencode(
+        {
+            "name": city,
+            "count": 1,
+            "language": "en",
+            "format": "json",
+            "country_code": country_code,
+        }
+    )
     return f"{base_url}?{query_string}"
 
 
@@ -74,10 +98,14 @@ def _load_json(url: str, timeout_seconds: float) -> dict[str, Any]:
     return json.loads(payload)
 
 
-def _parse_openweather_forecast(city: str, payload: dict[str, Any], source_url: str) -> WeatherForecastReading:
+def _parse_openweather_forecast(
+    city: str, payload: dict[str, Any], source_url: str
+) -> WeatherForecastReading:
     forecast_entries = payload.get("list")
     if not isinstance(forecast_entries, list) or not forecast_entries:
-        raise RuntimeError("OpenWeather forecast payload did not include any forecast entries")
+        raise RuntimeError(
+            "OpenWeather forecast payload did not include any forecast entries"
+        )
 
     city_payload = payload.get("city")
     timezone_offset_seconds = 0
@@ -104,12 +132,18 @@ def _parse_openweather_forecast(city: str, payload: dict[str, Any], source_url: 
         if not math.isfinite(temperature_c):
             continue
 
-        entry_date = datetime.fromtimestamp(int(timestamp), tz=timezone.utc).astimezone(site_timezone).date()
+        entry_date = (
+            datetime.fromtimestamp(int(timestamp), tz=timezone.utc)
+            .astimezone(site_timezone)
+            .date()
+        )
         if entry_date == today:
             max_temperatures.append(temperature_c)
 
     if not max_temperatures:
-        raise RuntimeError(f"OpenWeather forecast did not include today's max temperature for {city}")
+        raise RuntimeError(
+            f"OpenWeather forecast did not include today's max temperature for {city}"
+        )
 
     provider_name = "OpenWeather"
     if isinstance(city_payload, dict):
@@ -128,19 +162,27 @@ def _parse_openweather_forecast(city: str, payload: dict[str, Any], source_url: 
     )
 
 
-def _parse_openmeteo_geocoding(city: str, payload: dict[str, Any], source_url: str) -> dict[str, Any]:
+def _parse_openmeteo_geocoding(
+    city: str, payload: dict[str, Any], source_url: str
+) -> dict[str, Any]:
     results = payload.get("results")
     if not isinstance(results, list) or not results:
-        raise RuntimeError(f"Open-Meteo geocoding did not return coordinates for {city}")
+        raise RuntimeError(
+            f"Open-Meteo geocoding did not return coordinates for {city}"
+        )
 
     first_result = results[0]
     if not isinstance(first_result, dict):
-        raise RuntimeError(f"Open-Meteo geocoding returned an invalid result for {city}")
+        raise RuntimeError(
+            f"Open-Meteo geocoding returned an invalid result for {city}"
+        )
 
     latitude = first_result.get("latitude")
     longitude = first_result.get("longitude")
     if latitude is None or longitude is None:
-        raise RuntimeError(f"Open-Meteo geocoding result was missing coordinates for {city}")
+        raise RuntimeError(
+            f"Open-Meteo geocoding result was missing coordinates for {city}"
+        )
 
     resolved_name = str(first_result.get("name", city))
     return {
@@ -157,21 +199,31 @@ def _parse_openmeteo_geocoding(city: str, payload: dict[str, Any], source_url: s
     }
 
 
-def _parse_openmeteo_forecast(city: str, payload: dict[str, Any], source_url: str) -> WeatherForecastReading:
+def _parse_openmeteo_forecast(
+    city: str, payload: dict[str, Any], source_url: str
+) -> WeatherForecastReading:
     daily = payload.get("daily")
     if not isinstance(daily, dict):
-        raise RuntimeError(f"Open-Meteo forecast payload did not include daily temperatures for {city}")
+        raise RuntimeError(
+            f"Open-Meteo forecast payload did not include daily temperatures for {city}"
+        )
 
     temperatures = daily.get("temperature_2m_max")
     dates = daily.get("time")
     if not isinstance(temperatures, list) or not temperatures:
-        raise RuntimeError(f"Open-Meteo forecast payload did not include today's max temperature for {city}")
+        raise RuntimeError(
+            f"Open-Meteo forecast payload did not include today's max temperature for {city}"
+        )
     if not isinstance(dates, list) or len(dates) != len(temperatures):
-        raise RuntimeError(f"Open-Meteo forecast payload had mismatched dates and temperatures for {city}")
+        raise RuntimeError(
+            f"Open-Meteo forecast payload had mismatched dates and temperatures for {city}"
+        )
 
     max_temperature_c = float(temperatures[0])
     if not math.isfinite(max_temperature_c):
-        raise RuntimeError(f"Open-Meteo forecast payload included a non-finite max temperature for {city}")
+        raise RuntimeError(
+            f"Open-Meteo forecast payload included a non-finite max temperature for {city}"
+        )
 
     # Open-Meteo's daily array is ordered starting today, in the site's local
     return WeatherForecastReading(
@@ -203,7 +255,9 @@ class OpenWeatherForecastClient:
                 f"Missing weather API key. Set {OPENWEATHER_API_KEY_ENV} or pass api_key explicitly."
             )
 
-        request_url = _build_openweather_request_url(self.base_url, api_key, city, self.units)
+        request_url = _build_openweather_request_url(
+            self.base_url, api_key, city, self.units
+        )
         payload = _load_json(request_url, self.timeout_seconds)
         source_url = _redact_openweather_source_url(request_url)
         return _parse_openweather_forecast(city, payload, source_url)
@@ -220,7 +274,9 @@ class OpenMeteoForecastClient:
     def get_todays_forecast(self, city: str) -> WeatherForecastReading:
         geocoding_request_url = _build_openmeteo_geocoding_url(self.geocoding_url, city)
         geocoding_payload = _load_json(geocoding_request_url, self.timeout_seconds)
-        location = _parse_openmeteo_geocoding(city, geocoding_payload, geocoding_request_url)
+        location = _parse_openmeteo_geocoding(
+            city, geocoding_payload, geocoding_request_url
+        )
 
         forecast_request_url = _build_openmeteo_forecast_url(
             self.forecast_url,
@@ -228,7 +284,9 @@ class OpenMeteoForecastClient:
             location["longitude"],
         )
         forecast_payload = _load_json(forecast_request_url, self.timeout_seconds)
-        reading = _parse_openmeteo_forecast(location["city"], forecast_payload, forecast_request_url)
+        reading = _parse_openmeteo_forecast(
+            location["city"], forecast_payload, forecast_request_url
+        )
         reading.metadata.update(location["metadata"])
         return reading
 

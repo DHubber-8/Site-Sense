@@ -102,8 +102,13 @@ class PpeDetectionSmokeTest(unittest.TestCase):
 
         batch = agent.detect(image_path)
 
-        self.assertEqual([detection.item for detection in batch.detections], ["helmet", "no_helmet"])
-        self.assertEqual([detection.raw_label for detection in batch.detections], ["helmet", "no_helmet"])
+        self.assertEqual(
+            [detection.item for detection in batch.detections], ["helmet", "no_helmet"]
+        )
+        self.assertEqual(
+            [detection.raw_label for detection in batch.detections],
+            ["helmet", "no_helmet"],
+        )
 
     def test_model_loader_is_only_invoked_once_across_detect_calls(self) -> None:
         image_path = self._sample_image_path()
@@ -113,7 +118,12 @@ class PpeDetectionSmokeTest(unittest.TestCase):
             nonlocal load_calls
             load_calls += 1
             return _FakeModel(
-                [_FakePrediction(names={0: "helmet"}, boxes=[_FakeBox(0, 0.9, [1.0, 2.0, 3.0, 4.0])])]
+                [
+                    _FakePrediction(
+                        names={0: "helmet"},
+                        boxes=[_FakeBox(0, 0.9, [1.0, 2.0, 3.0, 4.0])],
+                    )
+                ]
             )
 
         agent = PpeDetectionAgent(model_path=PPE_MODEL_PATH, model_loader=loader)
@@ -175,7 +185,9 @@ class ResolveTrainedCheckpointSmokeTest(unittest.TestCase):
             configured = repo_root / PPE_MODEL_PATH
             configured.parent.mkdir(parents=True)
             configured.write_bytes(b"configured")
-            stray_run = repo_root / "runs" / "detect" / "train-99" / "weights" / "best.pt"
+            stray_run = (
+                repo_root / "runs" / "detect" / "train-99" / "weights" / "best.pt"
+            )
             stray_run.parent.mkdir(parents=True)
             stray_run.write_bytes(b"stray")
 
