@@ -26,13 +26,13 @@ Both feed into a shared risk-scoring and alert-routing system so site managers g
 - FR2.4 — **False-positive filtering**: implemented at the reading level (sustained-duration requirement above). Filtering against environmental confounds (e.g. direct sun exposure vs. genuine heat stress) is addressed by the simulation's realistic time-of-day modeling rather than sensor-calibration logic, since there is no physical sensor in this build.
 
 ### Risk Scoring & Alerting
-- FR3.1 — Classify all detections (PPE + heat) into severity tiers (minor / moderate / critical) against a taxonomy defined with C's input
-- FR3.2 — Route alerts by severity: log-only for minor, active notification for moderate/critical
-- FR3.3 — Distinguish alert types clearly in the UI (a PPE violation and a heat-stress warning require different manager responses)
+- FR3.1 — Classify all detections (PPE + heat) into severity tiers (minor / moderate / critical) against a taxonomy defined with C's input — **implemented**, `risk_scoring` normalizes PPE, heat-compliance (Level 1-3), and WBGT (Normal/Caution/High Risk/Extreme) into one shared `Severity` enum (see `specs/system_design.md`)
+- FR3.2 — Route alerts by severity: log-only for minor, active notification for moderate/critical — **implemented**
+- FR3.3 — Distinguish alert types clearly in the UI (a PPE violation and a heat-stress warning require different manager responses) — **implemented**, dashboard uses distinct severity/status badges and source labels per alert type
 
 ### Logging & Dashboard
-- FR4.1 — Maintain a timestamped compliance/incident log across both detection categories
-- FR4.2 — Dashboard shows current alerts, history, and — for heat monitoring — a trend view (is a worker's readings climbing over the shift)
+- FR4.1 — Maintain a timestamped compliance/incident log across both detection categories — **implemented**, SQLite store (`data/site_sense.db`)
+- FR4.2 — Dashboard shows current alerts, history, and — for heat monitoring — a trend view (is a worker's readings climbing over the shift) — **implemented**, includes a heat-exposure trend chart; presentation polish ongoing (`specs/dashboard-refinement/plan.md`)
 
 ---
 
@@ -48,7 +48,7 @@ Both feed into a shared risk-scoring and alert-routing system so site managers g
 - Sample/public construction site images for PPE detection — using the Ultralytics Construction-PPE dataset (11 classes)
 - Heat detection: **decided** — simulated data for the WBGT path (no real thermal hardware or proxy dataset), plus live weather-forecast data via Open-Meteo/OpenWeather for the compliance-alert path. Simulated readings are clearly labeled as such throughout the codebase and this document — no claim is made that this reflects live sensor hardware.
 - Reference heat-stress thresholds — sourced from GBZ/T 229.3-2025 (WBGT) and China's high-temperature allowance guidance (compliance levels), documented in `taxonomy/heat_thresholds.md`
-- Reference safety-code taxonomy for PPE severity — sourced from GB 2811-2019 and China's Law on Work Safety, documented in `taxonomy/ppe_severity.md`. **One cleanup item outstanding:** a duplicate/legacy file (`ppe_severity_ak.md`) with conflicting severity numbering still needs to be resolved by C.
+- Reference safety-code taxonomy for PPE severity — sourced from GB 2811-2019 and China's Law on Work Safety, documented in `taxonomy/ppe_severity.md`. The duplicate/legacy file (`ppe_severity_ak.md`) with conflicting severity numbering has been resolved and removed by C.
 
 ---
 
@@ -69,4 +69,4 @@ Both feed into a shared risk-scoring and alert-routing system so site managers g
 - **Heat detection uses simulated data, not real thermal hardware** — decided and implemented; must remain framed honestly as a proof-of-concept in the pitch, since judges will likely ask how this generalizes to real sensor hardware
 - **PPE class imbalance** — the fine-tuned model performs well on "worn PPE" classes but weaker on some "missing PPE" classes, particularly `no_boots` (only 4 training instances). This is a data-volume limitation, not something further training epochs alone resolved — worth disclosing directly rather than overselling detection accuracy across all 11 classes
 - False-positive filtering for heat is implemented via sustained-duration tracking (multiple consecutive elevated readings required before escalating) — this is the methodology judges are likely to probe, and it's ready to explain
-- **Risk-scoring is now the critical path** — PPE and heat detection are both done; nothing downstream (alert routing, logging, dashboard) can proceed until risk-scoring exists. If this slips, cut dashboard scope before cutting risk-scoring/alert-routing, since those are the functional core
+- **Full pipeline is now implemented end-to-end** (detection → scoring → routing → logging → dashboard). Remaining work is Week 3 polish: threshold tuning from C's review, stress-testing across varied images/conditions, and the pitch/submission writeup — see `TASKS.md`

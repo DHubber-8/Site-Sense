@@ -52,7 +52,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 
 ### Validation
 - [x] Run first end-to-end test (image/data in → detections → scoring → alert → log) — **E1** (test exists, correctly skips in environments without the trained checkpoint present; needs a real run against `best.pt` to confirm it actually passes end-to-end)
-- [ ] Review false positives/negatives from test run (both PPE and heat), adjust rules — **C**
+- [x] Review false positives/negatives from test run (both PPE and heat), adjust rules — **C** (review artifacts recorded in `specs/evidence/ppe_review_batch.md` and `specs/evidence/heat_review_summary.md`)
 
 ### End of Week 2 checkpoint
 - [x] Full pipeline runs end-to-end for both detection types — **All** — confirmed with a real run against the fine-tuned checkpoint (`runs/detect/train-10/weights/best.pt`) on a real sample image: 5 raw detections → 9 normalized assessments (5 direct + 4 PPE-coverage), correctly split across severity tiers, with the confidence-based review flag firing on low-confidence detections as designed. Full trace kept in `specs/evidence/real_checkpoint_run.md`.
@@ -64,7 +64,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 ### Refinement
 - [ ] Tune detection thresholds based on C's review — **E1**
 - [ ] Second false-positive filtering pass on heat detection specifically — **E1 + E2**
-- [ ] Build/polish dashboard: distinguish PPE alerts vs. heat alerts visually, add trend view for heat readings — **E2**
+- [x] Build/polish dashboard: distinguish PPE alerts vs. heat alerts visually, add trend view for heat readings — **E2** (severity/status/source badges distinguish alert types; heat-exposure trend chart added; ongoing refinement tracked in `specs/dashboard-refinement/plan.md`)
 
 ### Testing
 - [ ] Stress-test with varied images/conditions (lighting, crowding, simulated ambient temp swings) — **E1 + E2**
@@ -101,4 +101,4 @@ TASKS.md
 README.md
 ```
 
-**Status note:** the structure above matches what's actually in the repo. `/taxonomy/` is clean (duplicate removed). `/specs/` currently has some duplicate plan files pending cleanup (see Week 2) alongside the real per-agent plan docs and the system design/contract references.
+**Status note:** the structure above matches what's actually in the repo. `/taxonomy/` is clean (duplicate removed). `/specs/` duplicate plan files have been resolved (see Week 2); it now holds one `plan.md` per agent plus the system design doc, the detection output contract, evidence write-ups, and refinement plans (`ppe-coverage`, `risk_scoring_label_sync`, `risk_scoring_ppe_coverage`, `dashboard-refinement`, `heat_wbgt_scenario_profiles`) added as the build progressed.

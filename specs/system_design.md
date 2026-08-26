@@ -1,14 +1,16 @@
 # System Design — Risk Scoring, Alert Routing, Logging
 
 Owner: E1 (taking over from E2)
-Status: draft — the unified severity mapping below needs C's sign-off before implementation starts, since it makes a domain judgment call not stated in the taxonomy files.
+Status: implemented — the unified severity mapping below, including the WBGT 4-tier
+collapse, was confirmed by C (see `TASKS.md` Week 2) and is live in
+`agents/risk_scoring/agent.py`.
 
 ## 1. Why this doc exists
 
-`specs/detection_output_contract.md` was marked complete in `TASKS.md` but does not
-exist in the repo — this document replaces it and covers the same ground (real
-schema shapes from the two detection agents), plus the design for the three
-remaining agents.
+This document covers the real schema shapes from the two detection agents plus the
+design for the three downstream agents (risk scoring, alert routing, logging), all of
+which are now implemented against it. The detailed field-level output shapes now also
+live in `specs/detection/detection_output_contract.md`.
 
 ## 2. The core problem: three severity schemes that don't line up
 
@@ -22,7 +24,7 @@ Alert routing and logging should not need to know about three different naming
 schemes. Risk scoring's real job is **normalizing all three into one shared
 output**, not just relabeling detections.
 
-## 3. Proposed unified severity model — needs C's sign-off
+## 3. Unified severity model — confirmed by C
 
 ```python
 class Severity(Enum):
@@ -44,10 +46,10 @@ High Risk → MODERATE
 Extreme   → CRITICAL
 ```
 This collapses WBGT's "High Risk" and "Extreme" distinction down to MODERATE/CRITICAL.
-**This is a real domain decision, not an engineering one** — it decides how urgently
+**This was a real domain decision, not an engineering one** — it decides how urgently
 "reduce workload, monitor closely" (High Risk) gets treated versus "suspend outdoor
-work" (Extreme). Flag this mapping to C before building risk-scoring against it;
-don't treat it as settled just because it's written here.
+work" (Extreme). C agreed to this mapping (`TASKS.md` Week 2), and it is implemented
+as-is in `agents/risk_scoring/agent.py`.
 
 ## 4. Data flow
 
@@ -81,14 +83,13 @@ class RiskAssessment:
     assessed_at: datetime
 ```
 
-## 6. Open question — no `zone` field exists anywhere yet
+## 6. Resolved — `zone` defaults to a single-site model
 
-Neither `PpeDetectionBatch` nor the heat batches carry a `zone`/location field
-today, but the dashboard mockup and C's scenario docs both assume per-zone
-tracking. **This needs to be resolved before or during risk-scoring build** —
-either detection agents get a zone field added upstream (small schema change),
-or risk-scoring defaults to a single-site model for now and zone support is a
-documented gap, not silently assumed.
+Neither `PpeDetectionBatch` nor the heat batches carry a `zone`/location field,
+and detection agents were not extended to add one. `RiskAssessment.zone` exists
+in the shared schema but `risk_scoring/agent.py` always sets it to `None` —
+per-zone tracking is a documented gap, not silently assumed, and would require
+a detection-agent schema change to resolve.
 
 ## 7. Agent responsibilities (kept separate, not one mega-agent)
 

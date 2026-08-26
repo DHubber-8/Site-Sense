@@ -10,17 +10,17 @@ Every flagged incident is logged with a timestamped compliance trail, giving man
 
 ## Status
 
-This project is under active development. Current state:
+This project is under active development, now in final polish ahead of submission. Current state:
 
 | Component | Status |
 |---|---|
 | PPE detection agent | ✅ Implemented — fine-tuned YOLO26 checkpoint (100 epochs), verified against real sample images. Known limitation: `no_boots` detection is unreliable due to limited training data (4 instances). |
 | Heat detection agent | ✅ Implemented — two paths: weather-forecast compliance alerts (Open-Meteo default, OpenWeather fallback) and simulated WBGT risk levels with sustained-elevation false-positive filtering |
-| Risk scoring agent | 🚧 In progress — integration contract published for detection agent output shapes |
-| Alert routing agent | ⏳ Planned |
-| Logging agent | ⏳ Planned |
-| Dashboard | ⏳ Planned |
-| PPE severity taxonomy | ✅ Drafted |
+| Risk scoring agent | ✅ Implemented — normalizes PPE, heat-compliance, and WBGT detections into one shared severity model (`Severity.NONE/MINOR/MODERATE/CRITICAL`), plus a batch-level PPE-coverage check for unverifiable items |
+| Alert routing agent | ✅ Implemented — severity-based routing (log-only for minor, active notification for moderate/critical) |
+| Logging agent | ✅ Implemented — persists every assessment + routing decision to the SQLite store (`data/site_sense.db`) |
+| Dashboard | ✅ Implemented — Streamlit manager UI with real-time alerts, incident history, PPE vs. heat visual distinction, and a heat-exposure trend chart; refinement ongoing (see `specs/dashboard-refinement/plan.md`) |
+| PPE severity taxonomy | ✅ Complete |
 | Heat-stress thresholds | ✅ Complete — both WBGT-based and compliance-alert tiers defined |
 
 ## How it works (pipeline)
@@ -32,12 +32,12 @@ Site image / weather + simulated sensor input
 PPE detection   Heat detection  ✅ both implemented
    └────┬────┘
         │  (scored against /taxonomy)
-   Risk scoring          🚧 in progress
+   Risk scoring          ✅ implemented
         │
-   Alert routing         ⏳ planned
+   Alert routing         ✅ implemented
         │
    ┌────┴────┐
-Dashboard   Logging      ⏳ planned
+Dashboard   Logging      ✅ both implemented
 ```
 
 ## Repo structure
@@ -46,16 +46,17 @@ Dashboard   Logging      ⏳ planned
 agents/
   ppe_detection/     PPE detection agent (implemented)
   heat_detection/     Heat detection agent — compliance + WBGT paths (implemented)
-  risk_scoring/        Severity classification agent (in progress)
-  alert_routing/       Alert dispatch agent (planned)
-  logging/              Compliance/incident logging (planned)
+  risk_scoring/        Severity classification agent (implemented)
+  alert_routing/       Alert dispatch agent (implemented)
+  logging/              Compliance/incident logging (implemented)
 taxonomy/               Severity + threshold definitions (owned by domain lead,
                          see AGENTS.md — protected from direct AI edits)
 data/                   Sample images and synthetic/proxy data (no real site data)
-dashboard/              Manager-facing UI (planned)
+dashboard/              Manager-facing UI (implemented, ongoing refinement)
 specs/                  Plan docs produced before implementation (spec-driven workflow),
                          including the risk-scoring integration contract
-scripts/                One-off scripts (e.g. model training)
+scripts/                One-off scripts (model training, demo data seeding, reference-image
+                         generation, heat scenario export)
 tests/                  Test suite
 ```
 
