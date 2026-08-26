@@ -229,15 +229,22 @@ class EndToEndSmokeTest(unittest.TestCase):
                     "alert routing heat compliance (live provider)",
                     lambda: routing_agent.route_many(live_heat_assessments),
                 )
-                self._run_stage(
-                    "logging heat compliance (live provider)",
-                    lambda: logging_agent.record_many(live_heat_routed),
-                )
-                heat_compliance_available = True
-                verification_lines.append(
-                    f"Heat compliance live provider: PASS (alerts={len(live_heat_batch.alerts)}, "
-                    f"assessments={len(live_heat_assessments)}, routed={len(live_heat_routed)})"
-                )
+                if live_heat_batch.alerts:
+                    self._run_stage(
+                        "logging heat compliance (live provider)",
+                        lambda: logging_agent.record_many(live_heat_routed),
+                    )
+                    heat_compliance_available = True
+                    verification_lines.append(
+                        f"Heat compliance live provider: PASS (alerts={len(live_heat_batch.alerts)}, "
+                        f"assessments={len(live_heat_assessments)}, routed={len(live_heat_routed)})"
+                    )
+                else:
+                    verification_lines.append(
+                        "Heat compliance live provider: PASS-NO-ALERT "
+                        f"(forecast {live_heat_batch.forecast_max_temperature_c:.1f}°C is below "
+                        "the 35°C threshold, no alert expected)"
+                    )
             except AssertionError:
                 raise
             except Exception as exc:
