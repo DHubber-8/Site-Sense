@@ -14,6 +14,7 @@ if str(PROJECT_ROOT) not in sys.path:
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
+from PIL import Image
 
 from agents.logging import LoggingAgent
 from agents.logging.schema import LogRecord
@@ -245,7 +246,11 @@ def _render_reference_image(
         f'<div class="detail-label reference-label">{html.escape(label)}</div>',
         unsafe_allow_html=True,
     )
-    st.image(str(path), width=width)
+    if item_key == "gloves":
+        with Image.open(path) as image:
+            st.image(image.rotate(270, expand=True), width=width)
+    else:
+        st.image(str(path), width=width)
 
 
 def _incident_name(record: LogRecord) -> str:
@@ -305,7 +310,14 @@ def _inject_css() -> None:
        signal while the text label (never colour alone) carries identity. */
     :root { --navy:#101b2d; --ink:#334155; --muted:#566575; --faint:#5b6878; --line:#b8c5d4; --line-soft:#d3dbe4; --surface:#fff; --page:#e6ebf1; --blue:#2b5470; --amber:#7a5410; --red:#8a1c1c; --red-bg:#fbe4e1; --red-line:#dbb0aa; --amber-bg:#f9edd0; --amber-line:#dcc389; --blue-bg:#e4eef6; --blue-line:#adc8dc; --focus:#1f4e79; --sidebar-text:#1e2a3a; --card-border:#c0cedb; --checklist-text:#1f3b57; }
     .stApp { background:var(--page); color:var(--ink); font-family:'DM Sans',sans-serif; }
+    .stApp p, .stApp label, .stApp .stMarkdown, .stApp [data-testid="stCaptionContainer"] { color:var(--ink); }
     [data-testid="stSidebar"] { background:#fff; border-right:1px solid var(--line); color:var(--sidebar-text); }
+    [data-testid="stSidebar"] > div:first-child { padding-top:0!important; }
+     /* Streamlit renders st.navigation before user content regardless of call order. Reorder
+         the sidebar regions so the brand and site selector lead the page links visually. */
+     [data-testid="stSidebarContent"] { display:flex!important; flex-direction:column!important; }
+     [data-testid="stSidebarUserContent"] { order:1!important; }
+     [data-testid="stSidebarNav"] { order:2!important; }
     [data-testid="stSidebar"] * { color:var(--sidebar-text)!important; }
     [data-testid="stSidebar"] [data-testid="stCaptionContainer"] p, [data-testid="stSidebar"] .stMarkdown p, [data-testid="stSidebar"] .stSelectbox label, [data-testid="stSidebar"] [data-testid="stSidebarNav"] a { color:var(--sidebar-text)!important; }
     [data-testid="stSidebarNav"] { display:block; } [data-testid="stSidebarNav"] a { color:var(--navy)!important; font-weight:600; } [data-testid="stHeader"],[data-testid="stAppHeader"] { background:transparent; } [data-testid="stToolbar"] { visibility:hidden; }
@@ -324,7 +336,16 @@ def _inject_css() -> None:
     [data-testid="stMetricValue"] { color:var(--navy)!important; font-size:2rem!important; font-weight:600!important; line-height:1.15!important; letter-spacing:-.02em; }
     [data-testid="stMetricDelta"] { display:none!important; }
     .metric-caption { color:var(--faint); font-size:.75rem; margin-top:.3rem; line-height:1.4; }
-    .brand { display:flex; align-items:center; gap:.7rem; padding:.4rem 0 1.5rem; color:var(--navy); font-size:1.1rem; font-weight:600; } .brand-mark { display:grid; place-items:center; width:2rem; height:2rem; border-radius:6px; background:var(--navy); color:#fff; font-weight:600; }
+    .brand { display:flex; align-items:center; gap:.7rem; padding:0 0 1.5rem; color:var(--navy)!important; font-family:'DM Sans',sans-serif!important; font-size:1.1rem; font-weight:600; } .brand span { color:var(--navy)!important; font-family:'DM Sans',sans-serif!important; } .brand-mark { display:grid; place-items:center; width:2rem; height:2rem; border-radius:6px; background:#223451; color:#fff!important; font-family:'IBM Plex Mono',monospace!important; font-weight:600; }
+    /* Active Site uses Streamlit's current React-Aria combobox markup, not BaseWeb select markup. */
+    [data-testid="stSidebar"] input[aria-label="Active site"][role="combobox"] { background:var(--blue)!important; border:0!important; color:#ffffff!important; -webkit-text-fill-color:#ffffff!important; caret-color:#ffffff!important; font-family:'DM Sans',sans-serif!important; }
+    [data-testid="stSidebar"] div:has(> input[aria-label="Active site"][role="combobox"]) { background:var(--blue)!important; border:1px solid var(--blue)!important; box-shadow:none!important; }
+    [data-testid="stSidebar"] div:has(input[aria-label="Active site"][role="combobox"]) button { background:#ffffff!important; border:1px solid var(--blue)!important; color:var(--navy)!important; }
+    [data-testid="stSidebar"] input[aria-label="Active site"][role="combobox"]:focus,
+    [data-testid="stSidebar"] input[aria-label="Active site"][role="combobox"]:focus-visible { outline:none!important; border:0!important; box-shadow:none!important; }
+    [data-testid="stSidebar"] div:has(> input[aria-label="Active site"][role="combobox"]):focus-within { border-color:var(--blue)!important; outline:0!important; box-shadow:0 0 0 1px var(--blue)!important; }
+    [data-testid="stSidebar"] [role="listbox"] [role="option"] { background:var(--navy)!important; color:#ffffff!important; -webkit-text-fill-color:#ffffff!important; }
+    [data-testid="stSidebar"] .sidebar-status { position:fixed; left:1.25rem; bottom:1.25rem; color:var(--muted)!important; font-family:'DM Sans',sans-serif!important; font-size:.78rem; line-height:1.8; }
     .eyebrow { color:var(--faint); font-size:.7rem; font-weight:600; letter-spacing:.09em; text-transform:uppercase; } .page-intro { color:var(--muted); font-size:.92rem; margin-top:-.5rem; margin-bottom:1.75rem; }
     .section-gap { height:1.75rem; }
     .section-head { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:.1rem 0 .85rem; border-bottom:1px solid var(--line-soft); margin-bottom:.35rem; } .section-head h2 { margin:0; } .section-head p { color:var(--faint); margin:.25rem 0 0; font-size:.8rem; }
@@ -332,7 +353,7 @@ def _inject_css() -> None:
     .badge,.status-badge { display:inline-block; border:1px solid; border-radius:4px; padding:.16rem .45rem; font-size:.7rem; font-weight:600; letter-spacing:.01em; white-space:nowrap; } .status-badge { border-radius:999px; }
     .sev-critical { color:var(--red); background:var(--red-bg); border-color:var(--red-line); } .sev-moderate { color:var(--amber); background:var(--amber-bg); border-color:var(--amber-line); } .sev-minor { color:var(--blue); background:var(--blue-bg); border-color:var(--blue-line); } .sev-none { color:var(--navy); background:var(--line-soft); border-color:var(--line); }
     .status-active { color:var(--red); background:var(--red-bg); border-color:var(--red-line); } .status-acknowledged { color:var(--amber); background:var(--amber-bg); border-color:var(--amber-line); } .status-resolved { color:var(--blue); background:var(--blue-bg); border-color:var(--blue-line); }
-    .alert-row { padding:.85rem 0 .55rem; border-bottom:1px solid var(--line-soft); } .alert-row:last-child { border-bottom:0; } .alert-row.critical { box-shadow:inset 3px 0 0 var(--red); padding-left:.7rem; } .alert-title { display:flex; align-items:center; flex-wrap:wrap; gap:.5rem; font-size:.95rem; font-weight:600; color:var(--navy); } .alert-meta { color:var(--faint); font-size:.74rem; letter-spacing:.01em; margin:.4rem 0 .5rem; } .alert-row .muted { font-size:.86rem; line-height:1.5; }
+    .alert-row { margin:.55rem 0; padding:.85rem .9rem .7rem; background:var(--surface); border:1px solid var(--card-border); border-radius:8px; box-shadow:0 1px 3px rgba(16,27,45,.08); } .alert-row:last-child { margin-bottom:.25rem; } .alert-row.critical { box-shadow:inset 3px 0 0 var(--red), 0 1px 3px rgba(16,27,45,.08); padding-left:1rem; } .alert-title { display:flex; align-items:center; flex-wrap:wrap; gap:.5rem; font-size:.95rem; font-weight:600; color:var(--navy); } .alert-meta { color:var(--faint); font-size:.74rem; letter-spacing:.01em; margin:.4rem 0 .5rem; } .alert-row .muted { color:var(--ink); font-size:.86rem; line-height:1.5; }
     /* Labelled detail fields replace the previous raw JSON dump. */
     .detail-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(8.5rem,1fr)); gap:.6rem 1.25rem; padding:.7rem 0 .2rem; } .detail-grid .detail-value { font-size:.84rem; } .detail-label { color:var(--faint); font-size:.68rem; font-weight:600; letter-spacing:.07em; text-transform:uppercase; } .detail-value { color:var(--ink); font-size:.88rem; margin-top:.15rem; line-height:1.45; } .detail-note { color:var(--faint); font-size:.75rem; font-style:italic; margin-top:.5rem; } .detail-ref { color:var(--faint); font-family:'IBM Plex Mono',monospace; font-size:.7rem; margin-top:.85rem; }
     /* Reference images: fixed width + square crops => identical heights, so they line up.
@@ -340,7 +361,7 @@ def _inject_css() -> None:
     .reference-label { margin:.9rem 0 .35rem; }
     [data-testid="stImage"] { margin:0; } [data-testid="stImage"] img { border-radius:8px; border:1px solid var(--line-soft); display:block; }
     [data-testid="stImageCaption"], [data-testid="stImage"] figcaption { display:none!important; }
-    .muted { color:var(--muted); } .empty { text-align:center; padding:2.75rem 1.25rem; color:var(--faint); font-size:.88rem; } .mono { font-family:'IBM Plex Mono',monospace; font-size:.84rem; color:var(--ink); } .mobile-brand { display:none; }
+    .muted { color:var(--muted); } .empty { text-align:center; padding:2.75rem 1.25rem; color:var(--ink); font-size:.88rem; } .mono { font-family:'IBM Plex Mono',monospace; font-size:.84rem; color:var(--ink); } .mobile-brand { display:none; }
     button { border-radius:6px!important; background:#fff!important; color:var(--ink)!important; border:1px solid var(--line)!important; font-weight:500!important; } button p { color:inherit!important; font-size:.84rem!important; } button:hover:not(:disabled) { border-color:#8fa2b6!important; background:#f7fafc!important; color:var(--navy)!important; }
     button[kind="primary"] { background:var(--navy)!important; color:#fff!important; border-color:var(--navy)!important; } button[kind="primary"]:hover { background:#1c2c44!important; } button[kind="primary"] p { color:#fff!important; }
     button:disabled, button[disabled] { background:var(--page)!important; color:var(--muted)!important; border-color:var(--line)!important; box-shadow:none!important; cursor:not-allowed!important; }
@@ -349,11 +370,34 @@ def _inject_css() -> None:
     /* Form controls need a border strong enough to find on a bright site display. */
     [data-baseweb="select"] > div, [data-baseweb="input"], [data-baseweb="textarea"] { border-color:var(--line)!important; background:var(--surface)!important; } [data-baseweb="select"] > div:hover, [data-baseweb="input"]:hover { border-color:#8fa2b6!important; }
     [data-testid="stWidgetLabel"] p { color:var(--muted)!important; font-size:.76rem!important; font-weight:600!important; }
-    [data-testid="stExpander"] details { border:1px solid var(--line)!important; border-radius:8px!important; background:var(--surface)!important; } [data-testid="stExpander"] summary { font-size:.88rem!important; color:var(--ink)!important; } [data-testid="stExpander"] summary:hover { color:var(--navy)!important; background:#f7fafc!important; }
+    [data-testid="stExpander"] details { border:1px solid var(--card-border)!important; border-radius:8px!important; background:var(--surface)!important; box-shadow:0 1px 3px rgba(16,27,45,.08); }
+    [data-testid="stExpander"] summary, [data-testid="stExpander"] summary * { font-size:.88rem!important; color:var(--navy)!important; -webkit-text-fill-color:var(--navy)!important; }
+    [data-testid="stExpander"] details[open] > summary, [data-testid="stExpander"] details[open] > summary * { color:#ffffff!important; -webkit-text-fill-color:#ffffff!important; background:#101b2d!important; }
+    [data-testid="stExpander"] summary:hover, [data-testid="stExpander"] summary:hover * { color:#ffffff!important; -webkit-text-fill-color:#ffffff!important; background:#101b2d!important; }
+    [data-testid="stExpander"] [data-testid="stMarkdownContainer"], [data-testid="stExpander"] [data-testid="stMarkdownContainer"] p, [data-testid="stExpander"] .detail-value, [data-testid="stExpander"] .mono { color:var(--ink)!important; }
+    [data-testid="stExpander"] .detail-label, [data-testid="stExpander"] .detail-note, [data-testid="stExpander"] .detail-ref { color:var(--faint)!important; }
+    [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stMarkdownContainer"] p, [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stMarkdownContainer"] li { color:var(--ink); }
+    [data-testid="stVerticalBlockBorderWrapper"] .section-head p, [data-testid="stVerticalBlockBorderWrapper"] .metric-caption { color:var(--faint)!important; }
+    [data-testid="stVerticalBlockBorderWrapper"] .detail-label { color:var(--faint)!important; }
+    [data-testid="stVerticalBlockBorderWrapper"] .detail-value { color:var(--ink)!important; }
+    [data-testid="stVerticalBlockBorderWrapper"] .badge, [data-testid="stVerticalBlockBorderWrapper"] .status-badge { color:inherit; }
     [data-testid="stCheckbox"] label { color:var(--checklist-text)!important; font-weight:600; }
     [data-testid="stCheckbox"] span { color:var(--checklist-text)!important; }
     [data-testid="stCheckbox"] .stCheckbox { border-left:2px solid var(--blue-line); padding-left:.35rem; }
     [data-testid="stSidebar"] [data-testid="stCaptionContainer"] p, [data-testid="stCaptionContainer"] p { color:var(--muted)!important; }
+    /* Dialog lives in a separate dark overlay container in Streamlit and does not share
+       the light-card contrast assumptions above. Force high-contrast tokens inside it. */
+    [data-testid="stDialog"] [role="dialog"], [data-testid="stDialog"] [role="dialog"] * { color:#f5f8fc!important; }
+    [data-testid="stDialog"] [role="dialog"] h1, [data-testid="stDialog"] [role="dialog"] h2, [data-testid="stDialog"] [role="dialog"] h3, [data-testid="stDialog"] [role="dialog"] h4 { color:#ffffff!important; }
+    [data-testid="stDialog"] [role="dialog"] .dialog-incident-title { color:#ffffff!important; font-weight:700; letter-spacing:-.01em; }
+    [data-testid="stDialog"] [role="dialog"] .dialog-incident-meta { color:#e6edf6!important; font-size:.86rem; }
+    [data-testid="stDialog"] [role="dialog"] [data-testid="stCaptionContainer"] p, [data-testid="stDialog"] [role="dialog"] [data-testid="stCheckbox"] label, [data-testid="stDialog"] [role="dialog"] [data-testid="stCheckbox"] span { color:#f0f6ff!important; }
+    [data-testid="stDialog"] [role="dialog"] [data-testid="stWidgetLabel"] p { color:#e8eef7!important; }
+    [data-testid="stDialog"] [role="dialog"] textarea { color:#f5f8fc!important; background:#1a2637!important; border-color:#5c7089!important; }
+    [data-testid="stDialog"] [role="dialog"] textarea::placeholder { color:#d2ddea!important; opacity:1!important; }
+    [data-testid="stDialog"] [role="dialog"] button { color:#f5f8fc!important; border-color:#7f95ad!important; background:#223247!important; }
+    [data-testid="stDialog"] [role="dialog"] button[kind="primary"] { color:#ffffff!important; background:#2f6fa3!important; border-color:#2f6fa3!important; }
+    [data-testid="stDialog"] [role="dialog"] button[kind="primary"] p, [data-testid="stDialog"] [role="dialog"] button p { color:inherit!important; }
     @media (max-width:800px) { .mobile-brand { display:block; } .page-intro { margin-bottom:1rem; } .section-gap { height:1rem; } }
     </style>
     """,
@@ -368,9 +412,11 @@ def _sidebar() -> None:
             unsafe_allow_html=True,
         )
         st.markdown('<div class="eyebrow">Active site</div>', unsafe_allow_html=True)
-        st.selectbox("Active site", ["Shenzhen"], label_visibility="collapsed")
-        st.caption("System status: Online")
-        st.caption(f"Last sync: {datetime.now().strftime('%H:%M')}")
+        st.selectbox("Active site", ["Shenzhen", "Guangzhou", "Shanghai"], label_visibility="collapsed")
+        st.markdown(
+            f'<div class="sidebar-status"><div>System status: Online</div><div>Last sync: {datetime.now().strftime("%H:%M")}</div></div>',
+            unsafe_allow_html=True,
+        )
 
 
 def _page_header(title: str, description: str) -> None:
@@ -461,9 +507,13 @@ def _resolution_dialog(record_id: str, action: str) -> None:
         st.error("This incident is no longer available.")
         return
     assessment = _assessment(record)
-    st.markdown(f"### {_incident_name(record)}")
-    st.caption(
-        f"{assessment.zone or 'Unassigned zone'} · {_relative_time(assessment.assessed_at)} · {assessment.severity.name.title()}"
+    st.markdown(
+        f'<h3 class="dialog-incident-title">{html.escape(_incident_name(record))}</h3>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        f'<p class="dialog-incident-meta">{html.escape(assessment.zone or "Unassigned zone")} · {html.escape(_relative_time(assessment.assessed_at))} · {html.escape(assessment.severity.name.title())}</p>',
+        unsafe_allow_html=True,
     )
     # Show the target state before the responder works the checklist.
     if assessment.source.startswith("ppe"):
