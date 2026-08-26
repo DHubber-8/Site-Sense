@@ -1,0 +1,64 @@
+{
+  "references": [
+    {
+      "item": "helmet",
+      "source_image": "image718.jpg",
+      "confidence": 0.7854,
+      "crop_box": [
+        64,
+        106,
+        396,
+        439
+      ],
+      "curated": false
+    },
+    {
+      "item": "gloves",
+      "source_image": "image771.jpg",
+      "confidence": 0.7438,
+      "crop_box": [
+        275,
+        86,
+        535,
+        346
+      ],
+      "curated": true
+    },
+    {
+      "item": "vest",
+      "source_image": "image714.jpeg",
+      "confidence": 0.9591,
+      "crop_box": [
+        0,
+        105,
+        430,
+        535
+      ],
+      "curated": true
+    },
+    {
+      "item": "boots",
+      "source_image": "image502.jpg",
+      "confidence": 0.8885,
+      "crop_box": [
+        116,
+        307,
+        431,
+        622
+      ],
+      "curated": false
+    },
+    {
+      "item": "goggles",
+      "source_image": "image502.jpg",
+      "confidence": 0.7554,
+      "crop_box": [
+        181,
+        0,
+        441,
+        260
+      ],
+      "curated": false
+    }
+  ]
+}
