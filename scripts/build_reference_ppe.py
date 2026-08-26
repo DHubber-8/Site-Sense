@@ -27,7 +27,7 @@ if str(REPO_ROOT) not in sys.path:
 from PIL import Image
 
 from agents.ppe_detection.agent import PpeDetectionAgent
-from agents.ppe_detection.config import PPE_MODEL_PATH
+from agents.ppe_detection.config import PPE_MODEL_PATH, resolve_trained_checkpoint
 from agents.risk_scoring.agent import RiskScoringAgent
 from agents.risk_scoring.schema import Severity
 
@@ -53,18 +53,6 @@ PREFERRED_SOURCES = {
     "vest": "image714.jpeg",
     "gloves": "image771.jpg",
 }
-
-
-def _resolve_checkpoint() -> Path | None:
-    """Prefer the configured checkpoint, else the newest trained one under runs/detect/."""
-    configured = REPO_ROOT / PPE_MODEL_PATH
-    if configured.exists():
-        return configured
-    candidates = sorted(
-        (REPO_ROOT / "runs" / "detect").glob("*/weights/best.pt"),
-        key=lambda path: path.stat().st_mtime,
-    )
-    return candidates[-1] if candidates else None
 
 
 def _compliant_examples(checkpoint: Path) -> dict[str, dict[str, Any]]:
@@ -172,7 +160,7 @@ def _write_reference(example: dict[str, Any]) -> dict[str, Any]:
 
 
 def main() -> None:
-    checkpoint = _resolve_checkpoint()
+    checkpoint = resolve_trained_checkpoint(REPO_ROOT)
     if checkpoint is None:
         print(
             f"No trained PPE checkpoint at {PPE_MODEL_PATH} or under runs/detect/."

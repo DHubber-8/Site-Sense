@@ -23,7 +23,7 @@ from agents.heat_detection.schema import HeatComplianceAlertBatch
 from agents.heat_detection.wbgt_risk import WBGTReading
 from agents.logging import LoggingAgent
 from agents.ppe_detection.agent import PpeDetectionAgent
-from agents.ppe_detection.config import PPE_MODEL_PATH
+from agents.ppe_detection.config import PPE_MODEL_PATH, resolve_trained_checkpoint
 from agents.ppe_detection.schema import PpeDetectionBatch
 from agents.risk_scoring.agent import RiskScoringAgent
 
@@ -60,25 +60,8 @@ def _reset_database() -> None:
         DATABASE_PATH.unlink()
 
 
-def _resolve_ppe_checkpoint() -> Path | None:
-    """Return a usable trained PPE checkpoint, preferring the configured path.
-
-    Training runs land in `runs/detect/<run>/weights/best.pt` and `runs/` is gitignored, so
-    the configured default is frequently absent on a fresh clone. Fall back to the most
-    recently written trained checkpoint instead of silently seeding a heat-only demo.
-    """
-    configured = REPO_ROOT / PPE_MODEL_PATH
-    if configured.exists():
-        return configured
-    candidates = sorted(
-        (REPO_ROOT / "runs" / "detect").glob("*/weights/best.pt"),
-        key=lambda path: path.stat().st_mtime,
-    )
-    return candidates[-1] if candidates else None
-
-
 def _build_ppe_assessments() -> list[Any]:
-    checkpoint = _resolve_ppe_checkpoint()
+    checkpoint = resolve_trained_checkpoint(REPO_ROOT)
     if checkpoint is None:
         print(
             f"  Skipping PPE: no trained checkpoint at {PPE_MODEL_PATH} or under runs/detect/."

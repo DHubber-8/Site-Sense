@@ -62,11 +62,11 @@ class PpeDetectionAgent:
         if self.model_override is not None:
             return self.model_override
 
-        if self.model_loader is not None:
-            self._model = self.model_loader()
+        if self._model is not None:
             return self._model
 
-        if self._model is not None:
+        if self.model_loader is not None:
+            self._model = self.model_loader()
             return self._model
 
         model_path = Path(self.model_path)

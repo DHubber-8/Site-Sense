@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import os
 import tempfile
 import unittest
 from pathlib import Path
 
 from agents.ppe_detection import PPE_MODEL_PATH, PpeDetectionAgent
-from agents.ppe_detection.config import is_base_checkpoint
+from agents.ppe_detection.config import is_base_checkpoint, resolve_trained_checkpoint
 
 
 class _FakeScalar:
@@ -104,6 +105,24 @@ class PpeDetectionSmokeTest(unittest.TestCase):
         self.assertEqual([detection.item for detection in batch.detections], ["helmet", "no_helmet"])
         self.assertEqual([detection.raw_label for detection in batch.detections], ["helmet", "no_helmet"])
 
+    def test_model_loader_is_only_invoked_once_across_detect_calls(self) -> None:
+        image_path = self._sample_image_path()
+        load_calls = 0
+
+        def loader() -> _FakeModel:
+            nonlocal load_calls
+            load_calls += 1
+            return _FakeModel(
+                [_FakePrediction(names={0: "helmet"}, boxes=[_FakeBox(0, 0.9, [1.0, 2.0, 3.0, 4.0])])]
+            )
+
+        agent = PpeDetectionAgent(model_path=PPE_MODEL_PATH, model_loader=loader)
+
+        agent.detect(image_path)
+        agent.detect(image_path)
+
+        self.assertEqual(load_calls, 1)
+
     def test_default_checkpoint_points_to_finetuned_weights(self) -> None:
         self.assertEqual(PPE_MODEL_PATH, "runs/detect/train-10/weights/best.pt")
         self.assertFalse(is_base_checkpoint(PPE_MODEL_PATH))
@@ -144,6 +163,47 @@ class PpeDetectionSmokeTest(unittest.TestCase):
             r"PPE model checkpoint not found: not-a-real-checkpoint\.pt",
         ):
             agent.detect(image_path)
+
+
+class ResolveTrainedCheckpointSmokeTest(unittest.TestCase):
+    """Shared checkpoint-resolution logic used by scripts/seed_demo_data.py and
+    scripts/build_reference_ppe.py — extracted here so both scripts stay in sync."""
+
+    def test_prefers_the_configured_checkpoint_when_present(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo_root = Path(temp_dir)
+            configured = repo_root / PPE_MODEL_PATH
+            configured.parent.mkdir(parents=True)
+            configured.write_bytes(b"configured")
+            stray_run = repo_root / "runs" / "detect" / "train-99" / "weights" / "best.pt"
+            stray_run.parent.mkdir(parents=True)
+            stray_run.write_bytes(b"stray")
+
+            resolved = resolve_trained_checkpoint(repo_root)
+
+            self.assertEqual(resolved, configured)
+
+    def test_falls_back_to_the_newest_run_when_configured_is_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo_root = Path(temp_dir)
+            older = repo_root / "runs" / "detect" / "train" / "weights" / "best.pt"
+            older.parent.mkdir(parents=True)
+            older.write_bytes(b"older")
+            newer = repo_root / "runs" / "detect" / "train-10" / "weights" / "best.pt"
+            newer.parent.mkdir(parents=True)
+            newer.write_bytes(b"newer")
+            os.utime(older, (1_700_000_000, 1_700_000_000))
+            os.utime(newer, (1_700_000_100, 1_700_000_100))
+
+            resolved = resolve_trained_checkpoint(repo_root)
+
+            self.assertEqual(resolved, newer)
+
+    def test_returns_none_when_no_checkpoint_exists(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo_root = Path(temp_dir)
+
+            self.assertIsNone(resolve_trained_checkpoint(repo_root))
 
 
 if __name__ == "__main__":
