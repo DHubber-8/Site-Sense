@@ -323,8 +323,6 @@ def _incident_name(record: LogRecord) -> str:
         return f"Missing {_ppe_item_text(assessment.label)}"
     if assessment.label == "none":
         return "Unclassified detection"
-    # `requires_review` is not persisted by the logging schema, so never claim a detection is
-    # "confirmed" from a stored record — state only what the record actually carries.
     if assessment.requires_review:
         return f"{_ppe_item_text(assessment.label).capitalize()} — low confidence"
     return f"{_ppe_item_text(assessment.label).capitalize()} detected"
@@ -884,7 +882,6 @@ def _detail_rows(record: LogRecord) -> list[tuple[str, str]]:
     """Labelled, human-readable fields for one incident, per detection source."""
     assessment = _assessment(record)
     detail = assessment.source_detail or {}
-    metadata = detail.get("metadata") or {}
     rows: list[tuple[str, str]] = []
 
     if assessment.source == "ppe":
@@ -950,20 +947,6 @@ def _detail_rows(record: LogRecord) -> list[tuple[str, str]]:
                 (
                     "Forecast maximum",
                     f"{float(detail['forecast_max_temperature_c']):.1f} °C",
-                )
-            )
-        if metadata.get("elevated_duration_minutes") is not None:
-            rows.append(
-                (
-                    "Sustained above threshold",
-                    f"{float(metadata['elevated_duration_minutes']):.0f} min",
-                )
-            )
-        if metadata.get("ambient_temperature_c") is not None:
-            rows.append(
-                (
-                    "Ambient temperature",
-                    f"{float(metadata['ambient_temperature_c']):.1f} °C",
                 )
             )
         rows.append(("Alert level", str(detail.get("level", assessment.label))))

@@ -105,7 +105,7 @@ class PpeDetectionSmokeTest(unittest.TestCase):
         self.assertEqual([detection.raw_label for detection in batch.detections], ["helmet", "no_helmet"])
 
     def test_default_checkpoint_points_to_finetuned_weights(self) -> None:
-        self.assertEqual(PPE_MODEL_PATH, "runs/detect/train/weights/best.pt")
+        self.assertEqual(PPE_MODEL_PATH, "runs/detect/train-10/weights/best.pt")
         self.assertFalse(is_base_checkpoint(PPE_MODEL_PATH))
         self.assertTrue(is_base_checkpoint("yolo26n.pt"))
 

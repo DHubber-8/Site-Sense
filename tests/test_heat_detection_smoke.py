@@ -54,7 +54,6 @@ class HeatDetectionSmokeTest(unittest.TestCase):
                     city="Shanghai",
                     forecast_date=date(2026, 8, 10),
                     max_temperature_c=temperature,
-                    metadata={"elevated_duration_minutes": 30, "ambient_temperature_c": 30.0},
                 )
                 alert = classify_heat_alert(reading)
 
@@ -72,7 +71,7 @@ class HeatDetectionSmokeTest(unittest.TestCase):
             max_temperature_c=37.5,
             provider="OpenWeather",
             source_url="https://example.test/weather",
-            metadata={"forecast_points_used": 4, "elevated_duration_minutes": 45, "ambient_temperature_c": 30.0},
+            metadata={"forecast_points_used": 4},
         )
         agent = HeatComplianceAlertAgent(
             site_city="Guangzhou",
@@ -91,26 +90,24 @@ class HeatDetectionSmokeTest(unittest.TestCase):
         self.assertIn("regulatory_actions", alert_payload)
         self.assertIn("ai_actions", alert_payload)
 
-    def test_classify_heat_alert_requires_proxy_safeguards(self) -> None:
-        cases = [
-            ({"elevated_duration_minutes": 15, "ambient_temperature_c": 30.0}, None),
-            ({"elevated_duration_minutes": 45, "ambient_temperature_c": 34.6}, None),
-        ]
+    def test_classify_heat_alert_fires_for_real_shaped_forecast_reading(self) -> None:
+        """A reading shaped like real client output (no elevated_duration_minutes /
+        ambient_temperature_c — those are WBGT sensor concepts, never populated by
+        OpenMeteoForecastClient or OpenWeatherForecastClient) must still alert once the
+        forecast crosses a Section 2 threshold, per taxonomy/heat_thresholds.md Section 2."""
+        reading = WeatherForecastReading(
+            city="Shenzhen",
+            forecast_date=date(2026, 8, 10),
+            max_temperature_c=41.0,
+            provider="Open-Meteo",
+            metadata={"forecast_points_used": 1, "daily_variable": "temperature_2m_max"},
+        )
 
-        for metadata, expected_level in cases:
-            with self.subTest(metadata=metadata):
-                reading = WeatherForecastReading(
-                    city="Shanghai",
-                    forecast_date=date(2026, 8, 10),
-                    max_temperature_c=37.5,
-                    metadata=metadata,
-                )
-                alert = classify_heat_alert(reading)
+        alert = classify_heat_alert(reading)
 
-                if expected_level is None:
-                    self.assertIsNone(alert)
-                else:
-                    self.assertIsNotNone(alert)
+        self.assertIsNotNone(alert)
+        assert alert is not None
+        self.assertEqual(alert.level, "Level 3")
 
     def test_assess_keeps_forecast_summary_when_below_threshold(self) -> None:
         reading = WeatherForecastReading(

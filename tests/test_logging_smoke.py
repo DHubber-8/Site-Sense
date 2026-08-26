@@ -24,6 +24,7 @@ class LoggingSmokeTest(unittest.TestCase):
         severity: Severity,
         source: str,
         timestamp: datetime | None = None,
+        requires_review: bool = False,
     ) -> RoutedAlert:
         timestamp = timestamp or self.timestamp
         assessment = RiskAssessment(
@@ -35,6 +36,7 @@ class LoggingSmokeTest(unittest.TestCase):
             recommended_actions=["Test action"],
             source_detail={"synthetic": True, "source": source},
             assessed_at=timestamp,
+            requires_review=requires_review,
         )
         return RoutedAlert(
             assessment=assessment,
@@ -55,6 +57,14 @@ class LoggingSmokeTest(unittest.TestCase):
         self.assertEqual(recent[0].record_id, record.record_id)
         self.assertEqual(recent[0].routed_alert.to_dict(), routed_alert.to_dict())
         self.assertIsInstance(record.recorded_at, datetime)
+
+    def test_record_persists_requires_review_flag(self) -> None:
+        routed_alert = self._routed_alert(Severity.MINOR, "ppe", requires_review=True)
+
+        self.store.record(routed_alert)
+        recent = self.store.recent()
+
+        self.assertTrue(recent[0].routed_alert.assessment.requires_review)
 
     def test_query_methods_filter_varied_records(self) -> None:
         first = self.store.record(

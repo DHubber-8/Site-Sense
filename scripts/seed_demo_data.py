@@ -16,10 +16,11 @@ from agents.heat_detection import (
     HeatComplianceAlertAgent,
     OpenMeteoForecastClient,
     WeatherForecastReading,
+    WBGTRiskAgent,
     classify_heat_alert,
 )
-from agents.heat_detection.schema import HeatComplianceAlertBatch, WBGTRiskBatch
-from agents.heat_detection.wbgt_risk import WBGTReading, classify_wbgt_risk
+from agents.heat_detection.schema import HeatComplianceAlertBatch
+from agents.heat_detection.wbgt_risk import WBGTReading
 from agents.logging import LoggingAgent
 from agents.ppe_detection.agent import PpeDetectionAgent
 from agents.ppe_detection.config import PPE_MODEL_PATH
@@ -114,6 +115,24 @@ def _build_ppe_assessments() -> list[Any]:
     return assessments
 
 
+class _ReplayWBGTReadingSource:
+    """Replays a fixed, pre-loaded sequence of readings, in order, for WBGTRiskAgent.
+
+    Lets the seed script feed each scenario file's readings through the real agent —
+    including its sustained-elevation false-positive filter — instead of classifying
+    each reading in isolation.
+    """
+
+    def __init__(self, readings: list[WBGTReading]) -> None:
+        self._readings = list(readings)
+        self._index = 0
+
+    def get_reading(self, city: str, reading_at: datetime | None = None) -> WBGTReading:
+        reading = self._readings[self._index]
+        self._index += 1
+        return reading
+
+
 def _build_wbgt_assessments() -> list[Any]:
     heat_dir = REPO_ROOT / "data" / "heat_proxy_or_synthetic"
     scoring_agent = RiskScoringAgent()
@@ -123,8 +142,8 @@ def _build_wbgt_assessments() -> list[Any]:
         if not payload_path.exists():
             continue
         payload = json.loads(payload_path.read_text(encoding="utf-8"))
-        for reading_payload in payload.get("readings", []):
-            reading = WBGTReading(
+        readings = [
+            WBGTReading(
                 city=str(reading_payload.get("city", "Shenzhen")),
                 reading_at=datetime.fromisoformat(str(reading_payload["reading_at"])),
                 air_temperature_c=float(reading_payload["air_temperature_c"]),
@@ -139,17 +158,18 @@ def _build_wbgt_assessments() -> list[Any]:
                 source_url=reading_payload.get("source_url"),
                 metadata=dict(reading_payload.get("metadata", {})),
             )
-            alert = classify_wbgt_risk(reading)
-            if alert is None:
-                continue
-            batch = WBGTRiskBatch(
-                site_city=reading.city,
-                reading_at=reading.reading_at,
-                wbgt_c=reading.wbgt_c,
-                alerts=[alert],
-                reading_source_name=reading.source_name,
-                reading_source_url=reading.source_url,
+            for reading_payload in payload.get("readings", [])
+        ]
+        if not readings:
+            continue
+
+        risk_agent = WBGTRiskAgent(reading_source=_ReplayWBGTReadingSource(readings))
+        for reading in readings:
+            batch = risk_agent.assess(
+                city=reading.city, reading_at=reading.reading_at, zone_id=scenario
             )
+            if not batch.alerts:
+                continue
             assessments.extend(scoring_agent.assess(batch))
     return assessments
 
@@ -176,10 +196,6 @@ def _build_compliance_assessments() -> list[Any]:
             max_temperature_c=38.3,
             provider="Manual demo fallback",
             source_url="manual://heat-compliance-demo",
-            metadata={
-                "elevated_duration_minutes": 90.0,
-                "ambient_temperature_c": 31.0,
-            },
         )
         alert = classify_heat_alert(reading)
         if alert is None:

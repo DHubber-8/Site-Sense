@@ -15,8 +15,6 @@ OPENWEATHER_FORECAST_URL = "https://api.openweathermap.org/data/2.5/forecast"
 OPENWEATHER_API_KEY_ENV = "OPENWEATHER_API_KEY"
 OPENMETEO_GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search"
 OPENMETEO_FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
-HEAT_PROXY_MIN_DURATION_MINUTES = 30.0
-HEAT_PROXY_MIN_AMBIENT_DELTA_C = 3.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -276,32 +274,11 @@ def _ai_actions(level: str) -> list[str]:
     raise ValueError(f"Unsupported heat compliance level: {level}")
 
 
-def _passes_heat_proxy_safeguards(reading: WeatherForecastReading) -> bool:
-    duration_minutes = reading.metadata.get("elevated_duration_minutes")
-    ambient_temperature_c = reading.metadata.get("ambient_temperature_c")
-    if duration_minutes is None or ambient_temperature_c is None:
-        return False
-
-    try:
-        sustained_duration_minutes = float(duration_minutes)
-        ambient_temperature_c = float(ambient_temperature_c)
-    except (TypeError, ValueError):
-        return False
-
-    if not math.isfinite(sustained_duration_minutes) or not math.isfinite(ambient_temperature_c):
-        return False
-    if sustained_duration_minutes < HEAT_PROXY_MIN_DURATION_MINUTES:
-        return False
-    if reading.max_temperature_c - ambient_temperature_c < HEAT_PROXY_MIN_AMBIENT_DELTA_C:
-        return False
-    return True
-
-
 def classify_heat_alert(reading: WeatherForecastReading) -> HeatComplianceAlert | None:
-    # Forecast temperature is a proxy for live thermal-camera data, so require
-    # sustained elevation and ambient compensation before using it as a signal.
-    if not _passes_heat_proxy_safeguards(reading):
-        return None
+    # Classification follows taxonomy/heat_thresholds.md Section 2 directly: the
+    # authoritative daily forecast maximum crossing a threshold is the whole signal.
+    # There is no sustained-duration or ambient-delta concept for a once-daily forecast
+    # reading (unlike the live-reading-series WBGT path) — do not reintroduce one here.
     if reading.max_temperature_c < 35.0:
         return None
 

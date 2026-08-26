@@ -1,7 +1,8 @@
 # Codebase Audit — Cleanup Plan
 
-Status: audit complete, no code changed yet — this doc is the plan to review/assign before
-implementation starts, per the spec-before-code workflow in `AGENTS.md`.
+Status: audit complete. **P0 items implemented and verified** (test-first, full suite green,
+re-seeded demo data confirmed the real-world fix). P1/P2 still pending, per the
+spec-before-code workflow in `AGENTS.md`.
 
 ## Scope & method
 
@@ -100,9 +101,9 @@ dashboard grows further. Lower priority than P0/P1.
 
 | # | Item | Files touched | Verification |
 |---|---|---|---|
-| P0-1 | Fix heat-compliance safeguard: either drop the duration/ambient gate for the forecast path (it's a single daily max, not a sensor series — sustained-elevation doesn't apply the same way) or source those fields correctly | `agents/heat_detection/agent.py`, its README, `tests/test_heat_detection_smoke.py` | New test: real-shaped `WeatherForecastReading` (no synthetic metadata) above 35°C → alert fires |
-| P0-2 | Add `requires_review` column to the SQLite schema + INSERT + `_record_from_row`; remove the now-dead dashboard comments/branches once real | `agents/logging/agent.py`, `dashboard/app.py` | Round-trip test: record → read back → `requires_review` preserved |
-| P0-3 | Route `seed_demo_data.py`'s WBGT seeding through `WBGTRiskAgent` instead of calling `classify_wbgt_risk` directly | `scripts/seed_demo_data.py` | Re-seed, confirm `brief_spike` produces no alert in `data/site_sense.db` |
+| P0-1 ✅ | Dropped the duration/ambient gate from `classify_heat_alert()` — it never matched `taxonomy/heat_thresholds.md` Section 2 (forecast-max-temperature only, no duration/ambient concept) and no real weather client ever populated the metadata it required | `agents/heat_detection/agent.py`, `scripts/seed_demo_data.py`, `dashboard/app.py`, `tests/test_heat_detection_smoke.py` | New test `test_classify_heat_alert_fires_for_real_shaped_forecast_reading` (RED confirmed, now GREEN); removed the now-lying `test_classify_heat_alert_requires_proxy_safeguards`; full suite green; **re-seeded demo data and confirmed a real live alert now records** (`heat_compliance: {'MODERATE': 2}`, previously always empty) |
+| P0-2 ✅ | Added `requires_review` column to the SQLite schema, INSERT, and `_record_from_row`, plus an `ALTER TABLE` migration for pre-existing databases; removed the now-stale dashboard comment | `agents/logging/agent.py`, `dashboard/app.py`, `tests/test_logging_smoke.py` | New test `test_record_persists_requires_review_flag` (RED confirmed, now GREEN); migration verified against the real pre-existing `data/site_sense.db` (column added, existing rows default to `False`) |
+| P0-3 ✅ | Routed `seed_demo_data.py`'s WBGT seeding through `WBGTRiskAgent` (via a small replay reading-source) instead of calling `classify_wbgt_risk` directly | `scripts/seed_demo_data.py`, `tests/test_seed_demo_data_smoke.py` (new) | New test `test_brief_spike_scenario_produces_no_wbgt_alert` (RED confirmed, now GREEN); re-seeded and confirmed the `brief_spike` transient reading (`wbgt_c=29.81`) produces no alert in `data/site_sense.db` |
 | P1-4 | Decide `dashboard/logic.py`'s fate: wire into `app.py`, or delete it + its tests | `dashboard/app.py` or `dashboard/logic.py` + `tests/test_dashboard_smoke.py` | Full suite green either way; dashboard manual smoke check |
 | P1-5 | Extract shared `resolve_ppe_checkpoint()` (e.g. into `agents/ppe_detection/config.py`) | `scripts/seed_demo_data.py`, `scripts/build_reference_ppe.py`, `agents/ppe_detection/config.py` | Both scripts still resolve the same checkpoint |
 | P1-6 | Fix or remove the `model_loader` caching branch | `agents/ppe_detection/agent.py` | New test exercising `model_loader` twice, asserting it's called once |

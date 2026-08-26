@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS records (
     recommended_actions TEXT NOT NULL,
     source_detail TEXT NOT NULL,
     assessed_at TEXT NOT NULL,
+    requires_review INTEGER NOT NULL DEFAULT 0,
     decision TEXT NOT NULL,
     routed_at TEXT NOT NULL,
     recorded_at TEXT NOT NULL
@@ -56,6 +57,17 @@ class LoggingAgent:
         database.parent.mkdir(parents=True, exist_ok=True)
         with self._connection() as connection:
             connection.execute(_CREATE_RECORDS_TABLE)
+            self._migrate_requires_review_column(connection)
+
+    @staticmethod
+    def _migrate_requires_review_column(connection: sqlite3.Connection) -> None:
+        """Add requires_review to a database created before this column existed."""
+
+        columns = {row[1] for row in connection.execute("PRAGMA table_info(records)")}
+        if "requires_review" not in columns:
+            connection.execute(
+                "ALTER TABLE records ADD COLUMN requires_review INTEGER NOT NULL DEFAULT 0"
+            )
 
     def record(
         self,
@@ -75,9 +87,9 @@ class LoggingAgent:
                 """
                 INSERT INTO records (
                     record_id, source, severity, label, description, zone,
-                    recommended_actions, source_detail, assessed_at, decision,
-                    routed_at, recorded_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    recommended_actions, source_detail, assessed_at, requires_review,
+                    decision, routed_at, recorded_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     record.record_id,
@@ -89,6 +101,7 @@ class LoggingAgent:
                     json.dumps(assessment.recommended_actions),
                     json.dumps(assessment.source_detail),
                     _utc_iso(assessment.assessed_at),
+                    int(assessment.requires_review),
                     routed_alert.decision,
                     _utc_iso(routed_alert.routed_at),
                     _utc_iso(record.recorded_at),
@@ -174,6 +187,7 @@ class LoggingAgent:
             recommended_actions=json.loads(row["recommended_actions"]),
             source_detail=json.loads(row["source_detail"]),
             assessed_at=_from_iso(row["assessed_at"]),
+            requires_review=bool(row["requires_review"]),
         )
         routed_alert = RoutedAlert(
             assessment=assessment,
