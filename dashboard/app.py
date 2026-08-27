@@ -456,19 +456,21 @@ def _inject_css() -> None:
     .response-note { margin-top:.8rem; padding:.7rem .8rem; border-left:2px solid #4a9a61; background:#f1f7f2; color:var(--ink); line-height:1.45; } .response-empty { margin-top:.8rem; padding:1rem .75rem; background:#f7fafc; }
     .protocol-icon { display:inline-grid; place-items:center; width:2rem; height:2rem; margin-right:.55rem; border-radius:7px; background:var(--green-bg); color:var(--green); font-family:'IBM Plex Mono',monospace; font-size:.75rem; font-weight:600; vertical-align:middle; } .protocol-description { color:var(--muted); font-size:.8rem; margin:.3rem 0 .8rem 2.55rem; } .protocol-footer { display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--line-soft); margin-top:.8rem; padding-top:.65rem; }
     .library-banner { margin-top:1rem; padding:.75rem; background:#f5f0e3; color:#7a5410; font-size:.76rem; line-height:1.45; border-radius:6px; } .library-legend { margin-top:.8rem; color:var(--muted); font-size:.76rem; line-height:2; } .legend-dot { display:inline-block; width:.45rem; height:.45rem; margin-right:.35rem; border-radius:50%; } .legend-critical { background:var(--red); } .legend-moderate { background:#c7892f; } .legend-recorded { background:#3d9a5b; }
-    /* Dialog lives in a separate dark overlay container in Streamlit and does not share
-       the light-card contrast assumptions above. Force high-contrast tokens inside it. */
-    [data-testid="stDialog"] [role="dialog"], [data-testid="stDialog"] [role="dialog"] * { color:#f5f8fc!important; }
-    [data-testid="stDialog"] [role="dialog"] h1, [data-testid="stDialog"] [role="dialog"] h2, [data-testid="stDialog"] [role="dialog"] h3, [data-testid="stDialog"] [role="dialog"] h4 { color:#ffffff!important; }
-    [data-testid="stDialog"] [role="dialog"] .dialog-incident-title { color:#ffffff!important; font-weight:700; letter-spacing:-.01em; }
-    [data-testid="stDialog"] [role="dialog"] .dialog-incident-meta { color:#e6edf6!important; font-size:.86rem; }
-    [data-testid="stDialog"] [role="dialog"] [data-testid="stCaptionContainer"] p, [data-testid="stDialog"] [role="dialog"] [data-testid="stCheckbox"] label, [data-testid="stDialog"] [role="dialog"] [data-testid="stCheckbox"] span { color:#f0f6ff!important; }
-    [data-testid="stDialog"] [role="dialog"] [data-testid="stWidgetLabel"] p { color:#e8eef7!important; }
-    [data-testid="stDialog"] [role="dialog"] textarea { color:#f5f8fc!important; background:#1a2637!important; border-color:#5c7089!important; }
-    [data-testid="stDialog"] [role="dialog"] textarea::placeholder { color:#d2ddea!important; opacity:1!important; }
-    [data-testid="stDialog"] [role="dialog"] button { color:#f5f8fc!important; border-color:#7f95ad!important; background:#223247!important; }
-    [data-testid="stDialog"] [role="dialog"] button[kind="primary"] { color:#ffffff!important; background:#2f6fa3!important; border-color:#2f6fa3!important; }
-    [data-testid="stDialog"] [role="dialog"] button[kind="primary"] p, [data-testid="stDialog"] [role="dialog"] button p { color:inherit!important; }
+     /* The pinned base theme is light, so the dialog must explicitly provide its own light
+         surface and dark form text instead of relying on Streamlit's overlay defaults. */
+     [data-testid="stDialog"] [role="dialog"] { background:var(--surface)!important; color:var(--ink)!important; border:1.5px solid var(--card-border)!important; box-shadow:0 18px 45px rgba(16,43,63,.2)!important; }
+     [data-testid="stDialog"] [role="dialog"] * { color:var(--ink)!important; }
+     [data-testid="stDialog"] [role="dialog"] h1, [data-testid="stDialog"] [role="dialog"] h2, [data-testid="stDialog"] [role="dialog"] h3, [data-testid="stDialog"] [role="dialog"] h4, [data-testid="stDialog"] [role="dialog"] .dialog-incident-title { color:var(--navy)!important; }
+     [data-testid="stDialog"] [role="dialog"] .dialog-incident-title { font-weight:700; letter-spacing:-.01em; }
+     [data-testid="stDialog"] [role="dialog"] .dialog-incident-meta { color:var(--muted)!important; font-size:.86rem; }
+     [data-testid="stDialog"] [role="dialog"] [data-testid="stCaptionContainer"] p, [data-testid="stDialog"] [role="dialog"] [data-testid="stCheckbox"] label, [data-testid="stDialog"] [role="dialog"] [data-testid="stCheckbox"] span { color:var(--ink)!important; }
+     [data-testid="stDialog"] [role="dialog"] [data-testid="stWidgetLabel"] p { color:var(--muted)!important; }
+     [data-testid="stDialog"] [role="dialog"] input[type="checkbox"] { accent-color:var(--green); }
+     [data-testid="stDialog"] [role="dialog"] textarea { color:var(--ink)!important; background:var(--surface)!important; border:1.5px solid var(--line)!important; }
+     [data-testid="stDialog"] [role="dialog"] textarea::placeholder { color:var(--faint)!important; opacity:1!important; }
+     [data-testid="stDialog"] [role="dialog"] button { color:var(--ink)!important; border-color:var(--line)!important; background:var(--surface)!important; }
+     [data-testid="stDialog"] [role="dialog"] button[kind="primary"] { color:#ffffff!important; background:var(--blue)!important; border-color:var(--blue)!important; }
+     [data-testid="stDialog"] [role="dialog"] button[kind="primary"] p, [data-testid="stDialog"] [role="dialog"] button p { color:inherit!important; }
     @media (max-width:800px) { .st-key-mobile-brand { display:block; } .page-intro { margin-bottom:1rem; } .section-gap { height:1rem; } }
     </style>
     """,
