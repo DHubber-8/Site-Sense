@@ -5,4 +5,4 @@ __pycache__/
 yolo26n.pt
 runs/
 *.db
-
+!data/site_sense.db
