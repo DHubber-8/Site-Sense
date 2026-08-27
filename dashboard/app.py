@@ -420,7 +420,7 @@ def _inject_css() -> None:
     .sev-critical { color:var(--red); background:var(--red-bg); border-color:var(--red-line); } .sev-moderate { color:var(--amber); background:var(--amber-bg); border-color:var(--amber-line); } .sev-minor { color:var(--blue); background:var(--blue-bg); border-color:var(--blue-line); } .sev-none { color:var(--navy); background:var(--line-soft); border-color:var(--line); }
     .status-active { color:var(--red); background:var(--red-bg); border-color:var(--red-line); } .status-acknowledged { color:var(--amber); background:var(--amber-bg); border-color:var(--amber-line); } .status-resolved { color:var(--blue); background:var(--blue-bg); border-color:var(--blue-line); }
     .alert-row { margin:.55rem 0; padding:.85rem .9rem .7rem; background:var(--surface-tint); border:1.5px solid var(--card-border); border-radius:8px; box-shadow:0 4px 10px rgba(27,55,65,.08); } .alert-row:last-child { margin-bottom:.25rem; } .alert-row.critical { background:var(--red-bg); box-shadow:inset 4px 0 0 var(--red), 0 4px 10px rgba(165,46,43,.1); padding-left:1rem; } .alert-row.moderate { background:var(--amber-bg); box-shadow:inset 4px 0 0 var(--amber), 0 4px 10px rgba(165,106,20,.1); padding-left:1rem; } .alert-row.minor { background:var(--blue-bg); box-shadow:inset 4px 0 0 var(--blue), 0 4px 10px rgba(45,100,125,.1); padding-left:1rem; } .alert-title { display:flex; align-items:center; flex-wrap:wrap; gap:.5rem; font-size:.95rem; font-weight:600; color:var(--navy); } .alert-meta { color:var(--faint); font-size:.74rem; letter-spacing:.01em; margin:.4rem 0 .5rem; } .alert-row .muted { color:var(--ink); font-size:.86rem; line-height:1.5; }
-    .compliance-label { display:flex; justify-content:space-between; gap:1rem; margin:.75rem 0 .15rem; color:var(--muted); font-size:.76rem; } .compliance-label strong { color:var(--navy); } [data-testid="stProgressBar"],[data-testid="stProgress"] { height:.45rem!important; background:#dce9e1!important; border-radius:999px!important; } [data-testid="stProgressBar"] > div,[data-testid="stProgress"] > div { background:var(--green)!important; border-radius:999px!important; } [data-testid="stProgressBar"] > div > div,[data-testid="stProgress"] > div > div { background:var(--green)!important; border-radius:999px!important; }
+    .compliance-label { display:flex; justify-content:space-between; gap:1rem; margin:.75rem 0 .15rem; color:var(--muted); font-size:.76rem; } .compliance-label strong { color:var(--navy); } .compliance-bar { height:.55rem; margin:.2rem 0 .15rem; overflow:hidden; display:flex; background:#cbd9d3; border-radius:999px; } .compliance-fill { height:100%; background:var(--green); } .compliance-legend { display:flex; justify-content:space-between; color:var(--faint); font-size:.66rem; }
     [class*="st-key-alert-actions-"] { margin-top:.7rem; } [class*="st-key-alert-actions-"] [data-testid="stExpander"] details { border:0!important; border-radius:6px!important; box-shadow:none!important; background:transparent!important; } [class*="st-key-alert-actions-"] [data-testid="stExpander"] summary { min-height:2.25rem; padding:.45rem .7rem!important; border:1px solid var(--line)!important; border-radius:6px!important; background:#f7fafc!important; } [class*="st-key-alert-actions-"] [data-testid="stExpander"] summary:hover { border-color:#8fa2b6!important; background:#eef3f7!important; } [class*="st-key-alert-actions-"] button { min-height:2.25rem!important; width:100%!important; }
     /* Labelled detail fields replace the previous raw JSON dump. */
     .detail-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(8.5rem,1fr)); gap:.6rem 1.25rem; padding:.7rem 0 .2rem; } .detail-grid .detail-value { font-size:.84rem; } .detail-label { color:var(--faint); font-size:.68rem; font-weight:600; letter-spacing:.07em; text-transform:uppercase; } .detail-value { color:var(--ink); font-size:.88rem; margin-top:.15rem; line-height:1.45; } .detail-note { color:var(--faint); font-size:.75rem; font-style:italic; margin-top:.5rem; } .detail-ref { color:var(--faint); font-family:'IBM Plex Mono',monospace; font-size:.7rem; margin-top:.85rem; }
@@ -605,8 +605,20 @@ def _render_heat_chart(records: list[LogRecord]) -> None:
             paper_bgcolor="white",
             plot_bgcolor="white",
             font={"family": "DM Sans", "color": "#566575", "size": 12},
-            xaxis={"showgrid": False, "linecolor": "#d3dbe4"},
-            yaxis={"title": "°C", "gridcolor": "#d8e4e2"},
+            xaxis={
+                "showgrid": False,
+                "linecolor": "#35515d",
+                "linewidth": 2,
+                "tickfont": {"color": "#35515d", "size": 12},
+            },
+            yaxis={
+                "title": {"text": "°C", "font": {"color": "#35515d", "size": 13}},
+                "gridcolor": "#b7c9c7",
+                "linecolor": "#35515d",
+                "linewidth": 2,
+                "tickfont": {"color": "#35515d", "size": 12},
+                "range": [0, max(40, float(frame["temperature"].max()) + 5)],
+            },
             hovermode="x unified",
         )
         card.plotly_chart(
@@ -628,7 +640,10 @@ def _render_ppe_compliance(records: list[LogRecord]) -> None:
             f'<div class="compliance-label"><span>{html.escape(label)}</span><strong>{percentage:.1f}%</strong></div>',
             unsafe_allow_html=True,
         )
-        card.progress(percentage / 100, text=None)
+        card.markdown(
+            f'<div class="compliance-bar" role="img" aria-label="{html.escape(label)}: {percentage:.1f}% confirmed worn, {100 - percentage:.1f}% not confirmed"><div class="compliance-fill" style="width:{percentage:.1f}%"></div></div><div class="compliance-legend"><span>Confirmed worn</span><span>Not confirmed</span></div>',
+            unsafe_allow_html=True,
+        )
     if not any(
         sum(values[key] for key in ("worn", "missing", "unaccounted"))
         for values in totals.values()
