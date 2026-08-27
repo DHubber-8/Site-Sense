@@ -1,5 +1,24 @@
 # Dashboard refinement plan
 
+## Scope
+
+- Update `dashboard/app.py` presentation only.
+- Add real-data breadcrumbs, monitoring status, sidebar metadata, PPE breakdown,
+  protocol library, and clearer incident detail layouts.
+- Read the documented WBGT threshold without modifying taxonomy files.
+
+## Data rules
+
+- Use the selected Active site value and logging timestamps for navigation context.
+- Derive PPE worn, missing, and unaccounted counts from persisted risk assessments.
+- Show response notes only when they exist; never invent user attribution.
+- Omit deltas when today-versus-yesterday data is insufficient.
+
+## Validation
+
+- Compile `dashboard/app.py` and run the focused dashboard smoke test.
+- Check the final diff for whitespace and scope.# Dashboard refinement plan
+
 ## Goal
 Refine the Site Sense dashboard presentation so it reads calm and operational for field
 managers, surface real PPE pipeline output alongside heat stress in the demo, and replace the
