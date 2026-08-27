@@ -81,9 +81,21 @@ cd Site-Sense
 uv run streamlit run dashboard/app.py
 ```
 
-The dashboard reads the existing SQLite logging store in `data/site_sense.db` and will seed a small demo dataset automatically if no alerts have been recorded yet.
-
 Run the PPE detection agent against a sample image — see `agents/ppe_detection/README.md` for usage and current checkpoint notes.
+
+## Demo data
+
+`data/site_sense.db` is committed to this repo as a frozen, curated demo dataset — this is intentional, not an oversight (see the `!data/site_sense.db` exception in `.gitignore`, which otherwise ignores all `*.db` files). It was generated once by running the real pipeline end-to-end against the sample images and scenario data already in this repo, not fabricated or hand-written.
+
+Cloning the repo and running the dashboard immediately shows this real, pre-populated data — no setup step required.
+
+To regenerate it yourself (e.g. after retraining the PPE model, adding new heat scenarios, or changing scoring/taxonomy rules):
+```bash
+python scripts/seed_demo_data.py
+```
+This rebuilds `data/site_sense.db` from scratch by running `agents/ppe_detection`, `agents/heat_detection`, `agents/risk_scoring`, `agents/alert_routing`, and `agents/logging` against real data in `data/sample_images/` and `data/heat_proxy_or_synthetic/` — every record in the resulting database is genuine pipeline output, not synthetic display text.
+
+If you regenerate it, recommit the file deliberately (`git add data/site_sense.db`) — this is meant to be a one-off, curated refresh, not something reseeded routinely on every run, since it's a binary file and frequent recommits bloat git history unnecessarily.
 
 ## Project docs
 
