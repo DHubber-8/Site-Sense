@@ -36,6 +36,7 @@ VISIBLE_ALERT_LIMIT = 10
 PPE_ALERT_SLOTS = 4
 REFERENCE_IMAGE_DIR = PROJECT_ROOT / "data" / "reference_ppe"
 REFERENCE_IMAGE_SUFFIXES = (".jpg", ".jpeg", ".png", ".webp")
+LOGO_PATH = PROJECT_ROOT / "dashboard" / "assets" / "logo.png"
 PPE_ITEM_KEYS = {"no_goggle": "goggles", "goggle": "goggles"}
 REFERENCE_WIDTH = 200
 ALERT_DETAIL_HEIGHT = 320
@@ -112,6 +113,11 @@ def _init_state() -> None:
 
 def _agent() -> LoggingAgent:
     return LoggingAgent(DATABASE_PATH)
+
+
+def _brand_logo() -> Image.Image:
+    with Image.open(LOGO_PATH) as logo:
+        return logo.crop((250, 100, 1000, 850)).copy()
 
 
 def _query_records(
@@ -313,18 +319,21 @@ def _inject_css() -> None:
     .stApp p, .stApp label, .stApp .stMarkdown, .stApp [data-testid="stCaptionContainer"] { color:var(--ink); }
     [data-testid="stSidebar"] { background:#fff; border-right:1px solid var(--line); color:var(--sidebar-text); }
     [data-testid="stSidebar"] > div:first-child { padding-top:0!important; }
+    [data-testid="stAppViewContainer"] .main .block-container,[data-testid="stMainBlockContainer"] { padding-top:1.5rem!important; }
      /* Streamlit renders st.navigation before user content regardless of call order. Reorder
          the sidebar regions so the brand and site selector lead the page links visually. */
-     [data-testid="stSidebarContent"] { display:flex!important; flex-direction:column!important; }
+    [data-testid="stSidebarContent"] { display:flex!important; flex-direction:column!important; }
      [data-testid="stSidebarUserContent"] { order:1!important; }
-     [data-testid="stSidebarNav"] { order:2!important; }
+    [data-testid="stSidebarUserContent"] { padding-bottom:.35rem!important; margin-bottom:0!important; }
+    [data-testid="stSidebarNav"] { order:2!important; margin-top:0!important; padding-top:0!important; }
     [data-testid="stSidebar"] * { color:var(--sidebar-text)!important; }
     [data-testid="stSidebar"] [data-testid="stCaptionContainer"] p, [data-testid="stSidebar"] .stMarkdown p, [data-testid="stSidebar"] .stSelectbox label, [data-testid="stSidebar"] [data-testid="stSidebarNav"] a { color:var(--sidebar-text)!important; }
-    [data-testid="stSidebarNav"] { display:block; } [data-testid="stSidebarNav"] a { color:var(--navy)!important; font-weight:600; } [data-testid="stHeader"],[data-testid="stAppHeader"] { background:transparent; } [data-testid="stToolbar"] { visibility:hidden; }
+    [data-testid="stSidebarNav"] { display:block; } [data-testid="stSidebarNav"] ul { margin-top:0!important; padding-top:.25rem!important; } [data-testid="stSidebarNav"] a { color:var(--navy)!important; font-weight:600; } [data-testid="stHeader"],[data-testid="stAppHeader"] { background:transparent; } [data-testid="stToolbar"] { visibility:hidden; }
     /* Keep the sidebar collapse/expand affordance permanently visible — Streamlit only reveals
        it on hover by default, which reads as a missing control on a wall-mounted display. */
     [data-testid="stSidebarCollapseButton"],[data-testid="stExpandSidebarButton"] { display:flex!important; visibility:visible!important; opacity:1!important; }
-    [data-testid="stSidebarCollapseButton"] button,[data-testid="stExpandSidebarButton"] button { background:var(--surface)!important; border:1px solid var(--line)!important; color:var(--muted)!important; box-shadow:0 1px 2px rgba(16,27,45,.06)!important; } [data-testid="stSidebarCollapseButton"] button:hover,[data-testid="stExpandSidebarButton"] button:hover { color:var(--navy)!important; border-color:#8fa2b6!important; }
+    [data-testid="stSidebarCollapseButton"], [data-testid="stExpandSidebarButton"] { top:.75rem!important; left:.75rem!important; }
+    [data-testid="stSidebarCollapseButton"] button,[data-testid="stExpandSidebarButton"] button { width:2rem!important; height:2rem!important; padding:0!important; background:var(--surface)!important; border:1px solid var(--line)!important; border-radius:8px!important; color:var(--muted)!important; box-shadow:0 1px 2px rgba(16,27,45,.06)!important; } [data-testid="stSidebarCollapseButton"] button:hover,[data-testid="stExpandSidebarButton"] button:hover { color:var(--navy)!important; border-color:#8fa2b6!important; background:#f7fafc!important; }
     h1,h2,h3,h4,p,span,label,div { font-family:'DM Sans',sans-serif; } h1 { font-size:1.75rem!important; font-weight:600!important; letter-spacing:-.015em; color:var(--navy)!important; } h2 { font-size:1.05rem!important; font-weight:600!important; letter-spacing:-.005em; color:var(--navy)!important; } h3 { font-size:1rem!important; font-weight:600!important; color:var(--navy)!important; }
     /* Cards are real Streamlit containers (st.container(border=True)) so their border actually
        encloses their contents. Section heads and rows sit flush to the container's own padding. */
@@ -336,7 +345,7 @@ def _inject_css() -> None:
     [data-testid="stMetricValue"] { color:var(--navy)!important; font-size:2rem!important; font-weight:600!important; line-height:1.15!important; letter-spacing:-.02em; }
     [data-testid="stMetricDelta"] { display:none!important; }
     .metric-caption { color:var(--faint); font-size:.75rem; margin-top:.3rem; line-height:1.4; }
-    .brand { display:flex; align-items:center; gap:.7rem; padding:0 0 1.5rem; color:var(--navy)!important; font-family:'DM Sans',sans-serif!important; font-size:1.1rem; font-weight:600; } .brand span { color:var(--navy)!important; font-family:'DM Sans',sans-serif!important; } .brand-mark { display:grid; place-items:center; width:2rem; height:2rem; border-radius:6px; background:#223451; color:#fff!important; font-family:'IBM Plex Mono',monospace!important; font-weight:600; }
+    .brand-wordmark { color:var(--navy)!important; font-family:'DM Sans',sans-serif!important; font-size:1.1rem; font-weight:600; line-height:1.2; } .st-key-sidebar-brand,.st-key-mobile-brand { padding:0 0 .35rem; } .st-key-mobile-brand { display:none; } .st-key-sidebar-brand [data-testid="stHorizontalBlock"],.st-key-mobile-brand [data-testid="stHorizontalBlock"] { align-items:center!important; } .st-key-sidebar-brand [data-testid="stImage"] img,.st-key-mobile-brand [data-testid="stImage"] img { width:60px; height:60px; object-fit:cover; border-radius:0; border:0!important; background:transparent; }
     /* Active Site uses Streamlit's current React-Aria combobox markup, not BaseWeb select markup. */
     [data-testid="stSidebar"] input[aria-label="Active site"][role="combobox"] { background:var(--blue)!important; border:0!important; color:#ffffff!important; -webkit-text-fill-color:#ffffff!important; caret-color:#ffffff!important; font-family:'DM Sans',sans-serif!important; }
     [data-testid="stSidebar"] div:has(> input[aria-label="Active site"][role="combobox"]) { background:var(--blue)!important; border:1px solid var(--blue)!important; box-shadow:none!important; }
@@ -354,6 +363,7 @@ def _inject_css() -> None:
     .sev-critical { color:var(--red); background:var(--red-bg); border-color:var(--red-line); } .sev-moderate { color:var(--amber); background:var(--amber-bg); border-color:var(--amber-line); } .sev-minor { color:var(--blue); background:var(--blue-bg); border-color:var(--blue-line); } .sev-none { color:var(--navy); background:var(--line-soft); border-color:var(--line); }
     .status-active { color:var(--red); background:var(--red-bg); border-color:var(--red-line); } .status-acknowledged { color:var(--amber); background:var(--amber-bg); border-color:var(--amber-line); } .status-resolved { color:var(--blue); background:var(--blue-bg); border-color:var(--blue-line); }
     .alert-row { margin:.55rem 0; padding:.85rem .9rem .7rem; background:var(--surface); border:1px solid var(--card-border); border-radius:8px; box-shadow:0 1px 3px rgba(16,27,45,.08); } .alert-row:last-child { margin-bottom:.25rem; } .alert-row.critical { box-shadow:inset 3px 0 0 var(--red), 0 1px 3px rgba(16,27,45,.08); padding-left:1rem; } .alert-title { display:flex; align-items:center; flex-wrap:wrap; gap:.5rem; font-size:.95rem; font-weight:600; color:var(--navy); } .alert-meta { color:var(--faint); font-size:.74rem; letter-spacing:.01em; margin:.4rem 0 .5rem; } .alert-row .muted { color:var(--ink); font-size:.86rem; line-height:1.5; }
+    [class*="st-key-alert-actions-"] { margin-top:.7rem; } [class*="st-key-alert-actions-"] [data-testid="stExpander"] details { border:0!important; border-radius:6px!important; box-shadow:none!important; background:transparent!important; } [class*="st-key-alert-actions-"] [data-testid="stExpander"] summary { min-height:2.25rem; padding:.45rem .7rem!important; border:1px solid var(--line)!important; border-radius:6px!important; background:#f7fafc!important; } [class*="st-key-alert-actions-"] [data-testid="stExpander"] summary:hover { border-color:#8fa2b6!important; background:#eef3f7!important; } [class*="st-key-alert-actions-"] button { min-height:2.25rem!important; width:100%!important; }
     /* Labelled detail fields replace the previous raw JSON dump. */
     .detail-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(8.5rem,1fr)); gap:.6rem 1.25rem; padding:.7rem 0 .2rem; } .detail-grid .detail-value { font-size:.84rem; } .detail-label { color:var(--faint); font-size:.68rem; font-weight:600; letter-spacing:.07em; text-transform:uppercase; } .detail-value { color:var(--ink); font-size:.88rem; margin-top:.15rem; line-height:1.45; } .detail-note { color:var(--faint); font-size:.75rem; font-style:italic; margin-top:.5rem; } .detail-ref { color:var(--faint); font-family:'IBM Plex Mono',monospace; font-size:.7rem; margin-top:.85rem; }
     /* Reference images: fixed width + square crops => identical heights, so they line up.
@@ -361,7 +371,7 @@ def _inject_css() -> None:
     .reference-label { margin:.9rem 0 .35rem; }
     [data-testid="stImage"] { margin:0; } [data-testid="stImage"] img { border-radius:8px; border:1px solid var(--line-soft); display:block; }
     [data-testid="stImageCaption"], [data-testid="stImage"] figcaption { display:none!important; }
-    .muted { color:var(--muted); } .empty { text-align:center; padding:2.75rem 1.25rem; color:var(--ink); font-size:.88rem; } .mono { font-family:'IBM Plex Mono',monospace; font-size:.84rem; color:var(--ink); } .mobile-brand { display:none; }
+    .muted { color:var(--muted); } .empty { text-align:center; padding:2.75rem 1.25rem; color:var(--ink); font-size:.88rem; } .chart-empty { min-height:10rem; display:flex; align-items:center; justify-content:center; box-sizing:border-box; } .mono { font-family:'IBM Plex Mono',monospace; font-size:.84rem; color:var(--ink); } .mobile-brand { display:none; }
     button { border-radius:6px!important; background:#fff!important; color:var(--ink)!important; border:1px solid var(--line)!important; font-weight:500!important; } button p { color:inherit!important; font-size:.84rem!important; } button:hover:not(:disabled) { border-color:#8fa2b6!important; background:#f7fafc!important; color:var(--navy)!important; }
     button[kind="primary"] { background:var(--navy)!important; color:#fff!important; border-color:var(--navy)!important; } button[kind="primary"]:hover { background:#1c2c44!important; } button[kind="primary"] p { color:#fff!important; }
     button:disabled, button[disabled] { background:var(--page)!important; color:var(--muted)!important; border-color:var(--line)!important; box-shadow:none!important; cursor:not-allowed!important; }
@@ -398,7 +408,7 @@ def _inject_css() -> None:
     [data-testid="stDialog"] [role="dialog"] button { color:#f5f8fc!important; border-color:#7f95ad!important; background:#223247!important; }
     [data-testid="stDialog"] [role="dialog"] button[kind="primary"] { color:#ffffff!important; background:#2f6fa3!important; border-color:#2f6fa3!important; }
     [data-testid="stDialog"] [role="dialog"] button[kind="primary"] p, [data-testid="stDialog"] [role="dialog"] button p { color:inherit!important; }
-    @media (max-width:800px) { .mobile-brand { display:block; } .page-intro { margin-bottom:1rem; } .section-gap { height:1rem; } }
+    @media (max-width:800px) { .st-key-mobile-brand { display:block; } .page-intro { margin-bottom:1rem; } .section-gap { height:1rem; } }
     </style>
     """,
         unsafe_allow_html=True,
@@ -407,10 +417,12 @@ def _inject_css() -> None:
 
 def _sidebar() -> None:
     with st.sidebar:
-        st.markdown(
-            '<div class="brand"><span class="brand-mark">S</span><span>Site Sense</span></div>',
-            unsafe_allow_html=True,
-        )
+        with st.container(key="sidebar-brand"):
+            logo_column, wordmark_column = st.columns([1, 4], gap="small")
+            with logo_column:
+                st.image(_brand_logo(), width=60)
+            with wordmark_column:
+                st.markdown('<div class="brand-wordmark">Site Sense</div>', unsafe_allow_html=True)
         st.markdown('<div class="eyebrow">Active site</div>', unsafe_allow_html=True)
         st.selectbox("Active site", ["Shenzhen", "Guangzhou", "Shanghai"], label_visibility="collapsed")
         st.markdown(
@@ -420,10 +432,12 @@ def _sidebar() -> None:
 
 
 def _page_header(title: str, description: str) -> None:
-    st.markdown(
-        '<div class="mobile-brand brand"><span class="brand-mark">S</span><span>Site Sense</span></div>',
-        unsafe_allow_html=True,
-    )
+    with st.container(key="mobile-brand"):
+        logo_column, wordmark_column = st.columns([1, 4], gap="small")
+        with logo_column:
+            st.image(_brand_logo(), width=60)
+        with wordmark_column:
+            st.markdown('<div class="brand-wordmark">Site Sense</div>', unsafe_allow_html=True)
     st.title(title)
     st.markdown(
         f'<p class="page-intro">{html.escape(description)}</p>', unsafe_allow_html=True
@@ -461,7 +475,7 @@ def _render_heat_chart(records: list[LogRecord]) -> None:
     )
     if not points:
         card.markdown(
-            '<div class="empty">No heat telemetry is available for this period.</div>',
+            '<div class="empty chart-empty">No heat telemetry is available for this period.</div>',
             unsafe_allow_html=True,
         )
     else:
@@ -596,14 +610,14 @@ def _alert_card(record: LogRecord, key_prefix: str) -> None:
         f'<div class="alert-row {"critical" if assessment.severity is Severity.CRITICAL else ""}"><div class="alert-title">{_severity_badge(assessment.severity.name.title())} {html.escape(_incident_name(record))} {(_status_badge(_status(record)) if _status(record) != "active" else "")}</div><div class="alert-meta">{html.escape(assessment.zone or "Unassigned zone")} · {SOURCE_LABELS.get(assessment.source, assessment.source)} · {confidence_text} · {_relative_time(record.recorded_at)}</div>{_description_block(record)}</div>',
         unsafe_allow_html=True,
     )
-    action, _ = st.columns([1, 2])
-    with action:
-        _alert_actions(record, key_prefix)
-    # Full-width expander: in a half-width column the detail grid collapsed to one very tall
-    # column. Bounded height keeps the following alerts reachable without scrolling past it.
-    with st.expander("View details"):
-        with st.container(height=ALERT_DETAIL_HEIGHT, border=False):
-            _incident_details(record)
+    with st.container(key=f"alert-actions-{key_prefix}-{record.record_id}"):
+        details, response = st.columns([1.35, 1], gap="small")
+        with details:
+            with st.expander("View details"):
+                with st.container(height=ALERT_DETAIL_HEIGHT, border=False):
+                    _incident_details(record)
+        with response:
+            _alert_actions(record, key_prefix)
 
 
 def _is_ppe_violation(record: LogRecord) -> bool:
@@ -1062,7 +1076,7 @@ def _today_records() -> list[LogRecord]:
 def main() -> None:
     st.set_page_config(
         page_title="Site Sense",
-        page_icon="S",
+        page_icon=str(LOGO_PATH),
         layout="wide",
         initial_sidebar_state="expanded",
     )
