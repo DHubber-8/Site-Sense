@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import html
 import json
+import re
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -37,6 +38,9 @@ PPE_ALERT_SLOTS = 4
 REFERENCE_IMAGE_DIR = PROJECT_ROOT / "data" / "reference_ppe"
 REFERENCE_IMAGE_SUFFIXES = (".jpg", ".jpeg", ".png", ".webp")
 LOGO_PATH = PROJECT_ROOT / "dashboard" / "assets" / "logo.png"
+HEAT_TAXONOMY_PATH = PROJECT_ROOT / "taxonomy" / "heat_thresholds.md"
+PPE_CORE_ITEMS = ("helmet", "gloves", "boots", "goggles", "vest")
+MONITORED_SOURCES = {"ppe", "ppe_coverage", "heat_compliance", "heat_wbgt"}
 PPE_ITEM_KEYS = {"no_goggle": "goggles", "goggle": "goggles"}
 REFERENCE_WIDTH = 200
 ALERT_DETAIL_HEIGHT = 320
@@ -118,6 +122,54 @@ def _agent() -> LoggingAgent:
 def _brand_logo() -> Image.Image:
     with Image.open(LOGO_PATH) as logo:
         return logo.crop((250, 100, 1000, 850)).copy()
+
+
+def _latest_record() -> LogRecord | None:
+    records = _agent().recent(limit=1)
+    return records[0] if records else None
+
+
+def _reporting_sources(records: list[LogRecord]) -> set[str]:
+    return {
+        _assessment(record).source
+        for record in records
+        if _assessment(record).source in MONITORED_SOURCES
+        if not (_assessment(record).source_detail or {}).get("synthetic")
+    }
+
+
+def _wbgt_high_risk_threshold() -> float:
+    try:
+        taxonomy = HEAT_TAXONOMY_PATH.read_text(encoding="utf-8")
+    except OSError:
+        return 30.0
+    match = re.search(r"Risk Level: High Risk \(WBGT:\s*([0-9.]+)", taxonomy)
+    return float(match.group(1)) if match else 30.0
+
+
+def _ppe_compliance(records: list[LogRecord]) -> dict[str, dict[str, int | float]]:
+    totals = {
+        item: {"worn": 0, "missing": 0, "unaccounted": 0} for item in PPE_CORE_ITEMS
+    }
+    for record in records:
+        assessment = _assessment(record)
+        detail = assessment.source_detail or {}
+        if assessment.source == "ppe":
+            item = _ppe_item_key(assessment.label)
+            if item in totals:
+                totals[item][
+                    "missing" if assessment.label.startswith("no_") else "worn"
+                ] += 1
+        elif assessment.source == "ppe_coverage":
+            item = str(detail.get("item", assessment.label))
+            if item in totals:
+                totals[item]["unaccounted"] += 1
+    for values in totals.values():
+        denominator = values["worn"] + values["missing"] + values["unaccounted"]
+        values["percentage"] = (
+            round(100 * values["worn"] / denominator, 1) if denominator else 0.0
+        )
+    return totals
 
 
 def _query_records(
@@ -314,10 +366,12 @@ def _inject_css() -> None:
        and border tokens are strong enough to bound a card without looking like a wireframe.
        Severity stays red/amber/blue for critical/moderate/minor; the tints carry the at-a-glance
        signal while the text label (never colour alone) carries identity. */
-    :root { --navy:#101b2d; --ink:#334155; --muted:#566575; --faint:#5b6878; --line:#b8c5d4; --line-soft:#d3dbe4; --surface:#fff; --page:#e6ebf1; --blue:#2b5470; --amber:#7a5410; --red:#8a1c1c; --red-bg:#fbe4e1; --red-line:#dbb0aa; --amber-bg:#f9edd0; --amber-line:#dcc389; --blue-bg:#e4eef6; --blue-line:#adc8dc; --focus:#1f4e79; --sidebar-text:#1e2a3a; --card-border:#c0cedb; --checklist-text:#1f3b57; }
+    :root { --navy:#102b3f; --ink:#334c5e; --muted:#5d7381; --faint:#718591; --line:#b9cbd0; --line-soft:#d8e4e2; --surface:#ffffff; --surface-tint:#f8fbfa; --page:#e8f0ee; --sidebar:#edf5f0; --blue:#2d647d; --blue-bg:#e5f1f5; --blue-line:#b5d2dc; --amber:#a56a14; --amber-bg:#fff3d9; --amber-line:#e7c887; --red:#a52e2b; --red-bg:#fff0ee; --red-line:#e4b5b1; --green:#338451; --green-bg:#e6f4e9; --green-line:#b9d9c0; --focus:#2d647d; --sidebar-text:#213d4b; --card-border:#1b2b35; --checklist-text:#214957; }
     .stApp { background:var(--page); color:var(--ink); font-family:'DM Sans',sans-serif; }
+    [data-testid="stAppViewContainer"] > .main { background:linear-gradient(135deg,#e8f0ee 0%,#edf3f5 55%,#f6f3eb 100%); }
+    .main .block-container { max-width:1440px; }
     .stApp p, .stApp label, .stApp .stMarkdown, .stApp [data-testid="stCaptionContainer"] { color:var(--ink); }
-    [data-testid="stSidebar"] { background:#fff; border-right:1px solid var(--line); color:var(--sidebar-text); }
+    [data-testid="stSidebar"] { background:var(--sidebar); border-right:1px solid var(--line); color:var(--sidebar-text); }
     [data-testid="stSidebar"] > div:first-child { padding-top:0!important; }
     [data-testid="stAppViewContainer"] .main .block-container,[data-testid="stMainBlockContainer"] { padding-top:1.5rem!important; }
      /* Streamlit renders st.navigation before user content regardless of call order. Reorder
@@ -328,7 +382,7 @@ def _inject_css() -> None:
     [data-testid="stSidebarNav"] { order:2!important; margin-top:0!important; padding-top:0!important; }
     [data-testid="stSidebar"] * { color:var(--sidebar-text)!important; }
     [data-testid="stSidebar"] [data-testid="stCaptionContainer"] p, [data-testid="stSidebar"] .stMarkdown p, [data-testid="stSidebar"] .stSelectbox label, [data-testid="stSidebar"] [data-testid="stSidebarNav"] a { color:var(--sidebar-text)!important; }
-    [data-testid="stSidebarNav"] { display:block; } [data-testid="stSidebarNav"] ul { margin-top:0!important; padding-top:.25rem!important; } [data-testid="stSidebarNav"] a { color:var(--navy)!important; font-weight:600; } [data-testid="stHeader"],[data-testid="stAppHeader"] { background:transparent; } [data-testid="stToolbar"] { visibility:hidden; }
+    [data-testid="stSidebarNav"] { display:block; } [data-testid="stSidebarNav"] ul { margin-top:0!important; padding-top:.25rem!important; } [data-testid="stSidebarNav"] a { color:var(--navy)!important; font-weight:600; border-radius:8px; } [data-testid="stSidebarNav"] a[aria-current="page"] { background:#ffffff!important; box-shadow:0 2px 5px rgba(27,55,65,.1); } [data-testid="stHeader"],[data-testid="stAppHeader"] { background:transparent; } [data-testid="stToolbar"] { visibility:hidden; }
     /* Keep the sidebar collapse/expand affordance permanently visible — Streamlit only reveals
        it on hover by default, which reads as a missing control on a wall-mounted display. */
     [data-testid="stSidebarCollapseButton"],[data-testid="stExpandSidebarButton"] { display:flex!important; visibility:visible!important; opacity:1!important; }
@@ -337,14 +391,17 @@ def _inject_css() -> None:
     h1,h2,h3,h4,p,span,label,div { font-family:'DM Sans',sans-serif; } h1 { font-size:1.75rem!important; font-weight:600!important; letter-spacing:-.015em; color:var(--navy)!important; } h2 { font-size:1.05rem!important; font-weight:600!important; letter-spacing:-.005em; color:var(--navy)!important; } h3 { font-size:1rem!important; font-weight:600!important; color:var(--navy)!important; }
     /* Cards are real Streamlit containers (st.container(border=True)) so their border actually
        encloses their contents. Section heads and rows sit flush to the container's own padding. */
-    [data-testid="stVerticalBlockBorderWrapper"] { background:var(--surface); border:1px solid var(--card-border)!important; border-radius:10px; box-shadow:0 1px 3px rgba(16,27,45,.08); }
-    [data-testid="stVerticalBlockBorderWrapper"]:has(> div > [data-testid="stVerticalBlock"]) { background:var(--surface); border:1px solid var(--card-border)!important; border-radius:10px; box-shadow:0 1px 3px rgba(16,27,45,.08); }
+    [data-testid="stVerticalBlockBorderWrapper"] { background:var(--surface)!important; border:1.5px solid #263842!important; border-radius:10px; box-shadow:0 4px 12px rgba(27,55,65,.08); }
+    [data-testid="stVerticalBlockBorderWrapper"]:has(> div > [data-testid="stVerticalBlock"]) { background:var(--surface)!important; border:1.5px solid #263842!important; border-radius:10px; box-shadow:0 4px 12px rgba(27,55,65,.08); }
+    [data-testid="stVerticalBlockBorderWrapper"]:has([data-testid="stMetric"]) { border-color:#000!important; }
     /* The metric card provides its own frame, so the inner metric widget carries none. */
     [data-testid="stMetric"] { background:transparent; border:0; padding:0; }
     [data-testid="stMetricLabel"] { color:var(--muted)!important; } [data-testid="stMetricLabel"] p { font-size:.72rem!important; font-weight:600!important; letter-spacing:.06em; text-transform:uppercase; color:var(--muted)!important; }
     [data-testid="stMetricValue"] { color:var(--navy)!important; font-size:2rem!important; font-weight:600!important; line-height:1.15!important; letter-spacing:-.02em; }
     [data-testid="stMetricDelta"] { display:none!important; }
+    [data-testid="stMetric"]:after { content:""; position:absolute; right:-.8rem; bottom:-1.35rem; width:5rem; height:5rem; border:.8rem solid #e4f0e8; border-radius:50%; }
     .metric-caption { color:var(--faint); font-size:.75rem; margin-top:.3rem; line-height:1.4; }
+    [data-testid="stMetric"] { position:relative; overflow:hidden; } [data-testid="stMetric"] > div { position:relative; z-index:1; }
     .brand-wordmark { color:var(--navy)!important; font-family:'DM Sans',sans-serif!important; font-size:1.1rem; font-weight:600; line-height:1.2; } .st-key-sidebar-brand,.st-key-mobile-brand { padding:0 0 .35rem; } .st-key-mobile-brand { display:none; } .st-key-sidebar-brand [data-testid="stHorizontalBlock"],.st-key-mobile-brand [data-testid="stHorizontalBlock"] { align-items:center!important; } .st-key-sidebar-brand [data-testid="stImage"] img,.st-key-mobile-brand [data-testid="stImage"] img { width:60px; height:60px; object-fit:cover; border-radius:0; border:0!important; background:transparent; }
     /* Active Site uses Streamlit's current React-Aria combobox markup, not BaseWeb select markup. */
     [data-testid="stSidebar"] input[aria-label="Active site"][role="combobox"] { background:var(--blue)!important; border:0!important; color:#ffffff!important; -webkit-text-fill-color:#ffffff!important; caret-color:#ffffff!important; font-family:'DM Sans',sans-serif!important; }
@@ -355,14 +412,15 @@ def _inject_css() -> None:
     [data-testid="stSidebar"] div:has(> input[aria-label="Active site"][role="combobox"]):focus-within { border-color:var(--blue)!important; outline:0!important; box-shadow:0 0 0 1px var(--blue)!important; }
     [data-testid="stSidebar"] [role="listbox"] [role="option"] { background:var(--navy)!important; color:#ffffff!important; -webkit-text-fill-color:#ffffff!important; }
     [data-testid="stSidebar"] .sidebar-status { position:fixed; left:1.25rem; bottom:1.25rem; color:var(--muted)!important; font-family:'DM Sans',sans-serif!important; font-size:.78rem; line-height:1.8; }
-    .eyebrow { color:var(--faint); font-size:.7rem; font-weight:600; letter-spacing:.09em; text-transform:uppercase; } .page-intro { color:var(--muted); font-size:.92rem; margin-top:-.5rem; margin-bottom:1.75rem; }
+    .eyebrow { color:var(--faint); font-size:.7rem; font-weight:600; letter-spacing:.09em; text-transform:uppercase; } .page-intro { color:var(--muted); font-size:.92rem; margin-top:-.5rem; margin-bottom:1.75rem; } .page-shell { display:flex; align-items:center; justify-content:space-between; gap:1rem; margin-bottom:1.4rem; } .breadcrumb { color:var(--faint); font-family:'IBM Plex Mono',monospace; font-size:.72rem; } .breadcrumb strong { color:var(--navy); font-weight:600; } .live-status { display:flex; align-items:center; gap:.45rem; color:#2f7d4a; font-size:.76rem; font-weight:600; white-space:nowrap; } .live-dot { width:.45rem; height:.45rem; border-radius:50%; background:#3d9a5b; } .live-status.offline { color:var(--amber); } .live-status.offline .live-dot { background:#c7892f; }
     .section-gap { height:1.75rem; }
     .section-head { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:.1rem 0 .85rem; border-bottom:1px solid var(--line-soft); margin-bottom:.35rem; } .section-head h2 { margin:0; } .section-head p { color:var(--faint); margin:.25rem 0 0; font-size:.8rem; }
     .count { background:var(--line-soft); color:var(--navy); padding:.2rem .55rem; border-radius:999px; font-family:'IBM Plex Mono',monospace; font-size:.76rem; }
     .badge,.status-badge { display:inline-block; border:1px solid; border-radius:4px; padding:.16rem .45rem; font-size:.7rem; font-weight:600; letter-spacing:.01em; white-space:nowrap; } .status-badge { border-radius:999px; }
     .sev-critical { color:var(--red); background:var(--red-bg); border-color:var(--red-line); } .sev-moderate { color:var(--amber); background:var(--amber-bg); border-color:var(--amber-line); } .sev-minor { color:var(--blue); background:var(--blue-bg); border-color:var(--blue-line); } .sev-none { color:var(--navy); background:var(--line-soft); border-color:var(--line); }
     .status-active { color:var(--red); background:var(--red-bg); border-color:var(--red-line); } .status-acknowledged { color:var(--amber); background:var(--amber-bg); border-color:var(--amber-line); } .status-resolved { color:var(--blue); background:var(--blue-bg); border-color:var(--blue-line); }
-    .alert-row { margin:.55rem 0; padding:.85rem .9rem .7rem; background:var(--surface); border:1px solid var(--card-border); border-radius:8px; box-shadow:0 1px 3px rgba(16,27,45,.08); } .alert-row:last-child { margin-bottom:.25rem; } .alert-row.critical { box-shadow:inset 3px 0 0 var(--red), 0 1px 3px rgba(16,27,45,.08); padding-left:1rem; } .alert-title { display:flex; align-items:center; flex-wrap:wrap; gap:.5rem; font-size:.95rem; font-weight:600; color:var(--navy); } .alert-meta { color:var(--faint); font-size:.74rem; letter-spacing:.01em; margin:.4rem 0 .5rem; } .alert-row .muted { color:var(--ink); font-size:.86rem; line-height:1.5; }
+    .alert-row { margin:.55rem 0; padding:.85rem .9rem .7rem; background:var(--surface-tint); border:1.5px solid var(--card-border); border-radius:8px; box-shadow:0 4px 10px rgba(27,55,65,.08); } .alert-row:last-child { margin-bottom:.25rem; } .alert-row.critical { background:var(--red-bg); box-shadow:inset 4px 0 0 var(--red), 0 4px 10px rgba(165,46,43,.1); padding-left:1rem; } .alert-row.moderate { background:var(--amber-bg); box-shadow:inset 4px 0 0 var(--amber), 0 4px 10px rgba(165,106,20,.1); padding-left:1rem; } .alert-row.minor { background:var(--blue-bg); box-shadow:inset 4px 0 0 var(--blue), 0 4px 10px rgba(45,100,125,.1); padding-left:1rem; } .alert-title { display:flex; align-items:center; flex-wrap:wrap; gap:.5rem; font-size:.95rem; font-weight:600; color:var(--navy); } .alert-meta { color:var(--faint); font-size:.74rem; letter-spacing:.01em; margin:.4rem 0 .5rem; } .alert-row .muted { color:var(--ink); font-size:.86rem; line-height:1.5; }
+    .compliance-label { display:flex; justify-content:space-between; gap:1rem; margin:.75rem 0 .15rem; color:var(--muted); font-size:.76rem; } .compliance-label strong { color:var(--navy); } [data-testid="stProgressBar"],[data-testid="stProgress"] { height:.45rem!important; background:#dce9e1!important; border-radius:999px!important; } [data-testid="stProgressBar"] > div,[data-testid="stProgress"] > div { background:var(--green)!important; border-radius:999px!important; } [data-testid="stProgressBar"] > div > div,[data-testid="stProgress"] > div > div { background:var(--green)!important; border-radius:999px!important; }
     [class*="st-key-alert-actions-"] { margin-top:.7rem; } [class*="st-key-alert-actions-"] [data-testid="stExpander"] details { border:0!important; border-radius:6px!important; box-shadow:none!important; background:transparent!important; } [class*="st-key-alert-actions-"] [data-testid="stExpander"] summary { min-height:2.25rem; padding:.45rem .7rem!important; border:1px solid var(--line)!important; border-radius:6px!important; background:#f7fafc!important; } [class*="st-key-alert-actions-"] [data-testid="stExpander"] summary:hover { border-color:#8fa2b6!important; background:#eef3f7!important; } [class*="st-key-alert-actions-"] button { min-height:2.25rem!important; width:100%!important; }
     /* Labelled detail fields replace the previous raw JSON dump. */
     .detail-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(8.5rem,1fr)); gap:.6rem 1.25rem; padding:.7rem 0 .2rem; } .detail-grid .detail-value { font-size:.84rem; } .detail-label { color:var(--faint); font-size:.68rem; font-weight:600; letter-spacing:.07em; text-transform:uppercase; } .detail-value { color:var(--ink); font-size:.88rem; margin-top:.15rem; line-height:1.45; } .detail-note { color:var(--faint); font-size:.75rem; font-style:italic; margin-top:.5rem; } .detail-ref { color:var(--faint); font-family:'IBM Plex Mono',monospace; font-size:.7rem; margin-top:.85rem; }
@@ -371,7 +429,7 @@ def _inject_css() -> None:
     .reference-label { margin:.9rem 0 .35rem; }
     [data-testid="stImage"] { margin:0; } [data-testid="stImage"] img { border-radius:8px; border:1px solid var(--line-soft); display:block; }
     [data-testid="stImageCaption"], [data-testid="stImage"] figcaption { display:none!important; }
-    .muted { color:var(--muted); } .empty { text-align:center; padding:2.75rem 1.25rem; color:var(--ink); font-size:.88rem; } .chart-empty { min-height:10rem; display:flex; align-items:center; justify-content:center; box-sizing:border-box; } .mono { font-family:'IBM Plex Mono',monospace; font-size:.84rem; color:var(--ink); } .mobile-brand { display:none; }
+    .muted { color:var(--muted); } .empty { text-align:center; padding:2.75rem 1.25rem; color:var(--ink); font-size:.88rem; } .chart-empty { min-height:10rem; display:flex; align-items:center; justify-content:center; box-sizing:border-box; background:#f5f8f7; border-radius:7px; } .mono { font-family:'IBM Plex Mono',monospace; font-size:.84rem; color:var(--ink); } .mobile-brand { display:none; } .sidebar-workspace { color:var(--faint)!important; font-size:.68rem; font-weight:600; letter-spacing:.1em; text-transform:uppercase; margin:.55rem 0 .2rem; } .sidebar-status { border-top:1px solid var(--line-soft); padding-top:.75rem; }
     button { border-radius:6px!important; background:#fff!important; color:var(--ink)!important; border:1px solid var(--line)!important; font-weight:500!important; } button p { color:inherit!important; font-size:.84rem!important; } button:hover:not(:disabled) { border-color:#8fa2b6!important; background:#f7fafc!important; color:var(--navy)!important; }
     button[kind="primary"] { background:var(--navy)!important; color:#fff!important; border-color:var(--navy)!important; } button[kind="primary"]:hover { background:#1c2c44!important; } button[kind="primary"] p { color:#fff!important; }
     button:disabled, button[disabled] { background:var(--page)!important; color:var(--muted)!important; border-color:var(--line)!important; box-shadow:none!important; cursor:not-allowed!important; }
@@ -380,7 +438,7 @@ def _inject_css() -> None:
     /* Form controls need a border strong enough to find on a bright site display. */
     [data-baseweb="select"] > div, [data-baseweb="input"], [data-baseweb="textarea"] { border-color:var(--line)!important; background:var(--surface)!important; } [data-baseweb="select"] > div:hover, [data-baseweb="input"]:hover { border-color:#8fa2b6!important; }
     [data-testid="stWidgetLabel"] p { color:var(--muted)!important; font-size:.76rem!important; font-weight:600!important; }
-    [data-testid="stExpander"] details { border:1px solid var(--card-border)!important; border-radius:8px!important; background:var(--surface)!important; box-shadow:0 1px 3px rgba(16,27,45,.08); }
+    [data-testid="stExpander"] details { border:1.5px solid var(--card-border)!important; border-radius:8px!important; background:var(--surface)!important; box-shadow:0 1px 3px rgba(16,27,45,.08); }
     [data-testid="stExpander"] summary, [data-testid="stExpander"] summary * { font-size:.88rem!important; color:var(--navy)!important; -webkit-text-fill-color:var(--navy)!important; }
     [data-testid="stExpander"] details[open] > summary, [data-testid="stExpander"] details[open] > summary * { color:#ffffff!important; -webkit-text-fill-color:#ffffff!important; background:#101b2d!important; }
     [data-testid="stExpander"] summary:hover, [data-testid="stExpander"] summary:hover * { color:#ffffff!important; -webkit-text-fill-color:#ffffff!important; background:#101b2d!important; }
@@ -395,6 +453,9 @@ def _inject_css() -> None:
     [data-testid="stCheckbox"] span { color:var(--checklist-text)!important; }
     [data-testid="stCheckbox"] .stCheckbox { border-left:2px solid var(--blue-line); padding-left:.35rem; }
     [data-testid="stSidebar"] [data-testid="stCaptionContainer"] p, [data-testid="stCaptionContainer"] p { color:var(--muted)!important; }
+    .response-note { margin-top:.8rem; padding:.7rem .8rem; border-left:2px solid #4a9a61; background:#f1f7f2; color:var(--ink); line-height:1.45; } .response-empty { margin-top:.8rem; padding:1rem .75rem; background:#f7fafc; }
+    .protocol-icon { display:inline-grid; place-items:center; width:2rem; height:2rem; margin-right:.55rem; border-radius:7px; background:var(--green-bg); color:var(--green); font-family:'IBM Plex Mono',monospace; font-size:.75rem; font-weight:600; vertical-align:middle; } .protocol-description { color:var(--muted); font-size:.8rem; margin:.3rem 0 .8rem 2.55rem; } .protocol-footer { display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--line-soft); margin-top:.8rem; padding-top:.65rem; }
+    .library-banner { margin-top:1rem; padding:.75rem; background:#f5f0e3; color:#7a5410; font-size:.76rem; line-height:1.45; border-radius:6px; } .library-legend { margin-top:.8rem; color:var(--muted); font-size:.76rem; line-height:2; } .legend-dot { display:inline-block; width:.45rem; height:.45rem; margin-right:.35rem; border-radius:50%; } .legend-critical { background:var(--red); } .legend-moderate { background:#c7892f; } .legend-recorded { background:#3d9a5b; }
     /* Dialog lives in a separate dark overlay container in Streamlit and does not share
        the light-card contrast assumptions above. Force high-contrast tokens inside it. */
     [data-testid="stDialog"] [role="dialog"], [data-testid="stDialog"] [role="dialog"] * { color:#f5f8fc!important; }
@@ -422,11 +483,35 @@ def _sidebar() -> None:
             with logo_column:
                 st.image(_brand_logo(), width=60)
             with wordmark_column:
-                st.markdown('<div class="brand-wordmark">Site Sense</div>', unsafe_allow_html=True)
+                st.markdown(
+                    '<div class="brand-wordmark">Site Sense</div>',
+                    unsafe_allow_html=True,
+                )
         st.markdown('<div class="eyebrow">Active site</div>', unsafe_allow_html=True)
-        st.selectbox("Active site", ["Shenzhen", "Guangzhou", "Shanghai"], label_visibility="collapsed")
+        st.selectbox(
+            "Active site",
+            ["Shenzhen", "Guangzhou", "Shanghai"],
+            label_visibility="collapsed",
+            key="active_site",
+        )
         st.markdown(
-            f'<div class="sidebar-status"><div>System status: Online</div><div>Last sync: {datetime.now().strftime("%H:%M")}</div></div>',
+            '<div class="sidebar-workspace">Workspace</div>', unsafe_allow_html=True
+        )
+        logging_agent = _agent()
+        sources = {
+            source
+            for source in MONITORED_SOURCES
+            if _reporting_sources(logging_agent.filter_by_source(source))
+        }
+        latest_records = logging_agent.recent(limit=1)
+        latest = latest_records[0] if latest_records else None
+        last_sync = (
+            latest.recorded_at.astimezone().strftime("%Y-%m-%d %H:%M")
+            if latest is not None
+            else "No records yet"
+        )
+        st.markdown(
+            f'<div class="sidebar-status"><div><strong>Monitoring active</strong></div><div>{len(sources)} data sources reporting</div><div class="mono">Last sync: {html.escape(last_sync)}</div></div>',
             unsafe_allow_html=True,
         )
 
@@ -437,7 +522,17 @@ def _page_header(title: str, description: str) -> None:
         with logo_column:
             st.image(_brand_logo(), width=60)
         with wordmark_column:
-            st.markdown('<div class="brand-wordmark">Site Sense</div>', unsafe_allow_html=True)
+            st.markdown(
+                '<div class="brand-wordmark">Site Sense</div>', unsafe_allow_html=True
+            )
+    latest = _latest_record()
+    status_text = "Live monitoring" if latest is not None else "Awaiting telemetry"
+    status_class = "" if latest is not None else " offline"
+    site = html.escape(str(st.session_state.get("active_site", "Unknown site")))
+    st.markdown(
+        f'<div class="page-shell"><div class="breadcrumb">{site} / <strong>{html.escape(title)}</strong></div><div class="live-status{status_class}"><span class="live-dot"></span>{status_text}</div></div>',
+        unsafe_allow_html=True,
+    )
     st.title(title)
     st.markdown(
         f'<p class="page-intro">{html.escape(description)}</p>', unsafe_allow_html=True
@@ -459,7 +554,7 @@ def _render_heat_chart(records: list[LogRecord]) -> None:
     points = []
     for record in records:
         detail = _assessment(record).source_detail or {}
-        value = detail.get("air_temperature_c", detail.get("wbgt_c"))
+        value = detail.get("wbgt_c", detail.get("air_temperature_c"))
         if value is not None:
             # Plot the time the reading was taken, not the time the row was written. Records
             # ingested in one batch share a write timestamp, which collapsed the x-axis to a
@@ -486,15 +581,22 @@ def _render_heat_chart(records: list[LogRecord]) -> None:
                 y=frame["temperature"],
                 mode="lines+markers",
                 name="Proxy heat reading",
-                line={"color": "#9c6614", "width": 2},
-                marker={"color": "#9c6614", "size": 8},
+                line={"color": "#a56a14", "width": 2.5},
+                marker={
+                    "color": "#a56a14",
+                    "size": 8,
+                    "line": {"color": "#fff3d9", "width": 2},
+                },
+                fill="tozeroy",
+                fillcolor="rgba(229, 200, 135, .28)",
             )
         )
+        threshold = _wbgt_high_risk_threshold()
         figure.add_hline(
-            y=38,
+            y=threshold,
             line_dash="dash",
-            line_color="#9c2b26",
-            annotation_text="Danger threshold 38°C",
+            line_color="#a52e2b",
+            annotation_text=f"High-risk threshold {threshold:.1f}°C",
             annotation_position="top left",
         )
         figure.update_layout(
@@ -504,11 +606,36 @@ def _render_heat_chart(records: list[LogRecord]) -> None:
             plot_bgcolor="white",
             font={"family": "DM Sans", "color": "#566575", "size": 12},
             xaxis={"showgrid": False, "linecolor": "#d3dbe4"},
-            yaxis={"title": "°C", "gridcolor": "#dfe5ec"},
+            yaxis={"title": "°C", "gridcolor": "#d8e4e2"},
             hovermode="x unified",
         )
         card.plotly_chart(
             figure, use_container_width=True, config={"displayModeBar": False}
+        )
+
+
+def _render_ppe_compliance(records: list[LogRecord]) -> None:
+    card = st.container(border=True)
+    card.markdown(
+        '<div class="section-head"><div><h2>PPE compliance</h2><p>Confirmed worn against missing and unaccounted assessments</p></div></div>',
+        unsafe_allow_html=True,
+    )
+    totals = _ppe_compliance(records)
+    for item, values in totals.items():
+        label = _ppe_item_text(item).capitalize()
+        percentage = float(values["percentage"])
+        card.markdown(
+            f'<div class="compliance-label"><span>{html.escape(label)}</span><strong>{percentage:.1f}%</strong></div>',
+            unsafe_allow_html=True,
+        )
+        card.progress(percentage / 100, text=None)
+    if not any(
+        sum(values[key] for key in ("worn", "missing", "unaccounted"))
+        for values in totals.values()
+    ):
+        card.markdown(
+            '<div class="detail-note">No core PPE assessments are currently logged.</div>',
+            unsafe_allow_html=True,
         )
 
 
@@ -607,7 +734,7 @@ def _alert_card(record: LogRecord, key_prefix: str) -> None:
         else "Confidence unavailable"
     )
     st.markdown(
-        f'<div class="alert-row {"critical" if assessment.severity is Severity.CRITICAL else ""}"><div class="alert-title">{_severity_badge(assessment.severity.name.title())} {html.escape(_incident_name(record))} {(_status_badge(_status(record)) if _status(record) != "active" else "")}</div><div class="alert-meta">{html.escape(assessment.zone or "Unassigned zone")} · {SOURCE_LABELS.get(assessment.source, assessment.source)} · {confidence_text} · {_relative_time(record.recorded_at)}</div>{_description_block(record)}</div>',
+        f'<div class="alert-row {assessment.severity.name.lower()}"><div class="alert-title">{_severity_badge(assessment.severity.name.title())} {html.escape(_incident_name(record))} {(_status_badge(_status(record)) if _status(record) != "active" else "")}</div><div class="alert-meta">{html.escape(assessment.zone or "Unassigned zone")} · {SOURCE_LABELS.get(assessment.source, assessment.source)} · {confidence_text} · {_relative_time(record.recorded_at)}</div>{_description_block(record)}</div>',
         unsafe_allow_html=True,
     )
     with st.container(key=f"alert-actions-{key_prefix}-{record.record_id}"):
@@ -648,7 +775,9 @@ def _visible_alerts(records: list[LogRecord]) -> tuple[list[LogRecord], int]:
 
 
 def render_dashboard() -> None:
-    _page_header("Site overview", "Real-time safety telemetry and critical alerts.")
+    _page_header(
+        "Safety overview", "A clear read on conditions that need your attention."
+    )
     records = _query_records()
     today = _today_records()
     active = [record for record in records if _status(record) != "resolved"]
@@ -686,7 +815,7 @@ def render_dashboard() -> None:
     with left:
         with st.container(border=True):
             st.markdown(
-                f'<div class="section-head"><div><h2>Active alerts</h2><p>PPE violations and heat alerts awaiting action</p></div><span class="count">{actionable_total}</span></div>',
+                f'<div class="section-head"><div><h2>Recent alerts</h2><p>PPE violations and heat alerts awaiting action</p></div><span class="count">{actionable_total}</span></div>',
                 unsafe_allow_html=True,
             )
             if visible:
@@ -699,6 +828,7 @@ def render_dashboard() -> None:
                 )
     with right:
         now = datetime.now(timezone.utc)
+        _render_ppe_compliance(records)
         _render_heat_chart(_query_records(start=now - timedelta(hours=6), end=now))
 
 
@@ -910,6 +1040,37 @@ def _incident_details(record: LogRecord) -> None:
     )
 
 
+def _incident_evidence(record: LogRecord) -> None:
+    st.markdown('<div class="eyebrow">Detection evidence</div>', unsafe_allow_html=True)
+    st.markdown(
+        f'<div class="detail-value"><strong>{html.escape(_incident_name(record))}</strong><br>{html.escape(_readable_description(record))}</div>',
+        unsafe_allow_html=True,
+    )
+    _render_detail_grid(_detail_rows(record))
+    if (confidence := _confidence(record)) is not None:
+        st.progress(confidence, text=f"Detection confidence {confidence:.0%}")
+
+
+def _incident_response(record: LogRecord) -> None:
+    notes = st.session_state["incident_notes"].get(record.record_id)
+    st.markdown('<div class="eyebrow">Response record</div>', unsafe_allow_html=True)
+    st.markdown(
+        f'<div class="detail-value"><strong>{html.escape(STATUS_LABELS[_status(record)])}</strong><br>Response time: {html.escape(_format_response_time(record))}</div>',
+        unsafe_allow_html=True,
+    )
+    if notes:
+        st.markdown(
+            f'<div class="response-note">{html.escape(notes)}</div>',
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(
+            '<div class="empty response-empty">No response notes have been entered.</div>',
+            unsafe_allow_html=True,
+        )
+    _alert_actions(record, "log")
+
+
 def render_incident_log() -> None:
     _page_header(
         "Incident log", "A comprehensive history of safety events and actions taken."
@@ -961,7 +1122,7 @@ def render_incident_log() -> None:
         with events.expander(
             f"{_incident_name(record)} · {SOURCE_LABELS.get(assessment.source, assessment.source)} · {assessment.zone or 'Unassigned zone'} · {_status(record).title()}"
         ):
-            columns = st.columns([1.3, 1.1, 1, 1, 1])
+            columns = st.columns([1.3, 1.1, 1, 1])
             columns[0].markdown(
                 f"<div class='detail-label'>Timestamp</div><span class='mono'>{record.recorded_at.strftime('%b %d, %Y %H:%M')}</span>",
                 unsafe_allow_html=True,
@@ -978,9 +1139,95 @@ def render_incident_log() -> None:
                 f"<div class='detail-label'>Response time</div><span class='mono'>{_format_response_time(record)}</span>",
                 unsafe_allow_html=True,
             )
-            with columns[4]:
-                _alert_actions(record, "log")
-            _incident_details(record)
+            evidence, response = st.columns([1.2, 1])
+            with evidence:
+                _incident_evidence(record)
+            with response:
+                _incident_response(record)
+
+
+def _render_guideline_card(key: str, built_in: dict[str, Any]) -> None:
+    current = st.session_state["guidelines"][key]
+    with st.container(border=True):
+        top = st.columns([3, 1, 1])
+        scope = "Heat stress" if key == "heat" else f"Missing {_ppe_item_text(key)}"
+        icon = "H" if key == "heat" else _ppe_item_text(key)[:1].upper()
+        top[0].markdown(
+            f'<span class="protocol-icon">{icon}</span><strong>{html.escape(current["title"])}</strong><div class="protocol-description">Response steps for {html.escape(scope.lower())}.</div>',
+            unsafe_allow_html=True,
+        )
+        severity_class = (
+            "sev-critical"
+            if key in {"heat", "no_helmet", "no_boots"}
+            else "sev-moderate"
+        )
+        severity_text = (
+            "Critical protocol"
+            if severity_class == "sev-critical"
+            else "Moderate protocol"
+        )
+        top[1].markdown(
+            f'<span class="badge {severity_class}">{severity_text}</span>',
+            unsafe_allow_html=True,
+        )
+        editing = f"editing-{key}"
+        if top[2].button("Edit", key=f"edit-{key}"):
+            st.session_state[editing] = True
+        if st.session_state.get(editing):
+            title = st.text_input(
+                "Protocol title", value=current["title"], key=f"title-{key}"
+            )
+            edited = st.data_editor(
+                pd.DataFrame({"Step": current["steps"]}),
+                num_rows="dynamic",
+                hide_index=True,
+                key=f"editor-{key}",
+                use_container_width=True,
+            )
+            save, cancel, reset = st.columns(3)
+            if save.button("Save changes", key=f"save-{key}", type="primary"):
+                steps = [
+                    str(step).strip()
+                    for step in edited["Step"].tolist()
+                    if str(step).strip()
+                ]
+                st.session_state["guidelines"][key] = {
+                    "title": title.strip() or built_in["title"],
+                    "steps": steps,
+                }
+                st.session_state[editing] = False
+                st.rerun()
+            if cancel.button("Cancel", key=f"cancel-{key}"):
+                st.session_state[editing] = False
+                st.rerun()
+            if reset.button("Reset", key=f"reset-{key}"):
+                st.session_state["guidelines"][key] = {
+                    "title": built_in["title"],
+                    "steps": list(built_in["steps"]),
+                }
+                st.session_state[editing] = False
+                st.rerun()
+        else:
+            item_key = _ppe_item_key(key)
+            reference = _reference_image(item_key)
+            steps_column, image_column = (
+                st.columns([2.6, 1])
+                if reference is not None
+                else (st.container(), None)
+            )
+            with steps_column:
+                for index, step in enumerate(current["steps"], start=1):
+                    st.markdown(
+                        f'<span class="mono">{index:02d}</span> {html.escape(step)}',
+                        unsafe_allow_html=True,
+                    )
+            if image_column is not None:
+                with image_column:
+                    _render_reference_image(item_key, f"Correct {_ppe_item_text(key)}")
+            st.markdown(
+                f'<div class="protocol-footer"><span class="detail-note">{"Customized" if current != built_in else "Built-in protocol"}</span><span class="badge {severity_class}">{severity_text}</span></div>',
+                unsafe_allow_html=True,
+            )
 
 
 def render_guidelines() -> None:
@@ -988,78 +1235,22 @@ def render_guidelines() -> None:
         "Response guidelines",
         "China construction safety response protocols. Customize steps to match site procedures.",
     )
-    for key, built_in in BUILT_IN_GUIDELINES.items():
-        current = st.session_state["guidelines"][key]
+    library, protocols = st.columns([1, 2.5])
+    with library:
         with st.container(border=True):
-            top = st.columns([3, 1, 1])
-            scope = "Heat stress" if key == "heat" else f"Missing {_ppe_item_text(key)}"
-            top[0].markdown(
-                f"### {built_in['title']}\n<span class='detail-label'>Applies to {html.escape(scope.lower())}</span>",
+            protocol_count = len(st.session_state["guidelines"])
+            st.markdown("### Protocol library")
+            st.markdown(
+                f'<div class="detail-value">{protocol_count} active protocol{"s" if protocol_count != 1 else ""}</div>',
                 unsafe_allow_html=True,
             )
-            top[1].markdown(
-                "<br>"
-                + (
-                    "<span class='badge sev-minor'>Customized</span>"
-                    if current != built_in
-                    else "<span class='badge sev-none'>Built-in</span>"
-                ),
+            st.markdown(
+                '<div class="library-legend"><div><span class="legend-dot legend-critical"></span>Critical: immediate stop and correct</div><div><span class="legend-dot legend-moderate"></span>Moderate: intervene and monitor</div><div><span class="legend-dot legend-recorded"></span>Response recorded by supervisor</div></div><div class="library-banner">Guidelines apply to new alerts automatically. Edit only the site-specific instruction; core safety steps remain visible to every supervisor.</div>',
                 unsafe_allow_html=True,
             )
-            editing = f"editing-{key}"
-            if top[2].button("Edit", key=f"edit-{key}"):
-                st.session_state[editing] = True
-            if st.session_state.get(editing):
-                title = st.text_input(
-                    "Protocol title", value=current["title"], key=f"title-{key}"
-                )
-                edited = st.data_editor(
-                    pd.DataFrame({"Step": current["steps"]}),
-                    num_rows="dynamic",
-                    hide_index=True,
-                    key=f"editor-{key}",
-                    use_container_width=True,
-                )
-                # Data editor supports add/remove; drag-reorder remains a future enhancement.
-                save, cancel, reset = st.columns(3)
-                if save.button("Save changes", key=f"save-{key}", type="primary"):
-                    steps = [
-                        str(step).strip()
-                        for step in edited["Step"].tolist()
-                        if str(step).strip()
-                    ]
-                    st.session_state["guidelines"][key] = {
-                        "title": title.strip() or built_in["title"],
-                        "steps": steps,
-                    }
-                    st.session_state[editing] = False
-                    st.rerun()
-                if cancel.button("Cancel", key=f"cancel-{key}"):
-                    st.session_state[editing] = False
-                    st.rerun()
-                if reset.button("Reset", key=f"reset-{key}"):
-                    st.session_state["guidelines"][key] = {
-                        "title": built_in["title"],
-                        "steps": list(built_in["steps"]),
-                    }
-                    st.session_state[editing] = False
-                    st.rerun()
-            else:
-                item_key = _ppe_item_key(key)
-                reference = _reference_image(item_key)
-                steps_column, image_column = (
-                    st.columns([2.6, 1])
-                    if reference is not None
-                    else (st.container(), None)
-                )
-                with steps_column:
-                    for index, step in enumerate(current["steps"], start=1):
-                        st.markdown(f"{index}. {html.escape(step)}")
-                if image_column is not None:
-                    with image_column:
-                        _render_reference_image(
-                            item_key, f"Correct {_ppe_item_text(key)}"
-                        )
+    with protocols:
+        for key, built_in in BUILT_IN_GUIDELINES.items():
+            _render_guideline_card(key, built_in)
 
 
 def _today_records() -> list[LogRecord]:
