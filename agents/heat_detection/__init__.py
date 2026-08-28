@@ -7,7 +7,12 @@ from .agent import (
     WeatherForecastReading,
     classify_heat_alert,
 )
-from .schema import HeatComplianceAlert, HeatComplianceAlertBatch, WBGTRiskAlert, WBGTRiskBatch
+from .schema import (
+    HeatComplianceAlert,
+    HeatComplianceAlertBatch,
+    WBGTRiskAlert,
+    WBGTRiskBatch,
+)
 from .wbgt_risk import (
     DEFAULT_SIMULATED_SOURCE_NAME,
     DEFAULT_SIMULATED_SOURCE_URL,

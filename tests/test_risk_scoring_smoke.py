@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import unittest
 from datetime import date, datetime, timezone
+from pathlib import Path
 
 from agents.heat_detection.schema import (
     HeatComplianceAlert,
@@ -40,7 +41,9 @@ class RiskScoringSmokeTest(unittest.TestCase):
                 assessments = self.scoring_agent.assess(
                     PpeDetectionBatch(detections=[detection])
                 )
-                direct_assessments = [item for item in assessments if item.source == "ppe"]
+                direct_assessments = [
+                    item for item in assessments if item.source == "ppe"
+                ]
 
                 self.assertEqual(len(direct_assessments), 1)
                 self.assertEqual(direct_assessments[0].severity, expected_severity)
@@ -64,7 +67,9 @@ class RiskScoringSmokeTest(unittest.TestCase):
                     bounding_box=BoundingBox(1.0, 2.0, 11.0, 12.0),
                 )
 
-                with self.assertRaisesRegex(ValueError, rf"Unsupported PPE label: {label}"):
+                with self.assertRaisesRegex(
+                    ValueError, rf"Unsupported PPE label: {label}"
+                ):
                     self.scoring_agent.assess(PpeDetectionBatch(detections=[detection]))
 
     def test_ppe_scoring_low_confidence_flags_for_human_review(self) -> None:
@@ -74,7 +79,9 @@ class RiskScoringSmokeTest(unittest.TestCase):
             bounding_box=BoundingBox(1.0, 2.0, 11.0, 12.0),
         )
 
-        assessments = self.scoring_agent.assess(PpeDetectionBatch(detections=[detection]))
+        assessments = self.scoring_agent.assess(
+            PpeDetectionBatch(detections=[detection])
+        )
         assessment = next(item for item in assessments if item.source == "ppe")
 
         self.assertTrue(assessment.requires_review)
@@ -91,38 +98,87 @@ class RiskScoringSmokeTest(unittest.TestCase):
             bounding_box=BoundingBox(1.0, 2.0, 11.0, 12.0),
         )
 
-        assessments = self.scoring_agent.assess(PpeDetectionBatch(detections=[detection]))
+        assessments = self.scoring_agent.assess(
+            PpeDetectionBatch(detections=[detection])
+        )
         assessment = next(item for item in assessments if item.source == "ppe")
 
         self.assertFalse(assessment.requires_review)
         self.assertEqual(assessment.severity, Severity.CRITICAL)
-        self.assertEqual(assessment.description, "PPE violation detected: no_helmet (critical severity)")
+        self.assertEqual(
+            assessment.description,
+            "PPE violation detected: no_helmet (critical severity)",
+        )
 
     def test_ppe_coverage_all_items_confirmed_worn_has_no_coverage_alerts(self) -> None:
         detections = [
-            PpeDetection(item="helmet", confidence=0.95, bounding_box=BoundingBox(1.0, 2.0, 11.0, 12.0)),
-            PpeDetection(item="gloves", confidence=0.93, bounding_box=BoundingBox(2.0, 3.0, 12.0, 13.0)),
-            PpeDetection(item="vest", confidence=0.92, bounding_box=BoundingBox(3.0, 4.0, 13.0, 14.0)),
-            PpeDetection(item="boots", confidence=0.90, bounding_box=BoundingBox(4.0, 5.0, 14.0, 15.0)),
-            PpeDetection(item="goggles", confidence=0.91, bounding_box=BoundingBox(5.0, 6.0, 15.0, 16.0)),
+            PpeDetection(
+                item="helmet",
+                confidence=0.95,
+                bounding_box=BoundingBox(1.0, 2.0, 11.0, 12.0),
+            ),
+            PpeDetection(
+                item="gloves",
+                confidence=0.93,
+                bounding_box=BoundingBox(2.0, 3.0, 12.0, 13.0),
+            ),
+            PpeDetection(
+                item="vest",
+                confidence=0.92,
+                bounding_box=BoundingBox(3.0, 4.0, 13.0, 14.0),
+            ),
+            PpeDetection(
+                item="boots",
+                confidence=0.90,
+                bounding_box=BoundingBox(4.0, 5.0, 14.0, 15.0),
+            ),
+            PpeDetection(
+                item="goggles",
+                confidence=0.91,
+                bounding_box=BoundingBox(5.0, 6.0, 15.0, 16.0),
+            ),
         ]
 
-        assessments = self.scoring_agent.assess(PpeDetectionBatch(detections=detections))
-        coverage_assessments = [item for item in assessments if item.source == "ppe_coverage"]
+        assessments = self.scoring_agent.assess(
+            PpeDetectionBatch(detections=detections)
+        )
+        coverage_assessments = [
+            item for item in assessments if item.source == "ppe_coverage"
+        ]
 
         self.assertEqual(coverage_assessments, [])
         self.assertEqual(risk_scoring.overall_coverage_tier(assessments), 4)
 
     def test_ppe_coverage_one_item_unaccounted_emits_one_minor_alert(self) -> None:
         detections = [
-            PpeDetection(item="helmet", confidence=0.95, bounding_box=BoundingBox(1.0, 2.0, 11.0, 12.0)),
-            PpeDetection(item="vest", confidence=0.92, bounding_box=BoundingBox(3.0, 4.0, 13.0, 14.0)),
-            PpeDetection(item="boots", confidence=0.90, bounding_box=BoundingBox(4.0, 5.0, 14.0, 15.0)),
-            PpeDetection(item="goggles", confidence=0.91, bounding_box=BoundingBox(5.0, 6.0, 15.0, 16.0)),
+            PpeDetection(
+                item="helmet",
+                confidence=0.95,
+                bounding_box=BoundingBox(1.0, 2.0, 11.0, 12.0),
+            ),
+            PpeDetection(
+                item="vest",
+                confidence=0.92,
+                bounding_box=BoundingBox(3.0, 4.0, 13.0, 14.0),
+            ),
+            PpeDetection(
+                item="boots",
+                confidence=0.90,
+                bounding_box=BoundingBox(4.0, 5.0, 14.0, 15.0),
+            ),
+            PpeDetection(
+                item="goggles",
+                confidence=0.91,
+                bounding_box=BoundingBox(5.0, 6.0, 15.0, 16.0),
+            ),
         ]
 
-        assessments = self.scoring_agent.assess(PpeDetectionBatch(detections=detections))
-        coverage_assessments = [item for item in assessments if item.source == "ppe_coverage"]
+        assessments = self.scoring_agent.assess(
+            PpeDetectionBatch(detections=detections)
+        )
+        coverage_assessments = [
+            item for item in assessments if item.source == "ppe_coverage"
+        ]
 
         self.assertEqual(len(coverage_assessments), 1)
         self.assertEqual(coverage_assessments[0].label, "gloves")
@@ -136,14 +192,34 @@ class RiskScoringSmokeTest(unittest.TestCase):
 
     def test_ppe_coverage_unaccounted_vest_uses_minor_coverage_path(self) -> None:
         detections = [
-            PpeDetection(item="helmet", confidence=0.95, bounding_box=BoundingBox(1.0, 2.0, 11.0, 12.0)),
-            PpeDetection(item="gloves", confidence=0.93, bounding_box=BoundingBox(2.0, 3.0, 12.0, 13.0)),
-            PpeDetection(item="boots", confidence=0.90, bounding_box=BoundingBox(4.0, 5.0, 14.0, 15.0)),
-            PpeDetection(item="goggles", confidence=0.91, bounding_box=BoundingBox(5.0, 6.0, 15.0, 16.0)),
+            PpeDetection(
+                item="helmet",
+                confidence=0.95,
+                bounding_box=BoundingBox(1.0, 2.0, 11.0, 12.0),
+            ),
+            PpeDetection(
+                item="gloves",
+                confidence=0.93,
+                bounding_box=BoundingBox(2.0, 3.0, 12.0, 13.0),
+            ),
+            PpeDetection(
+                item="boots",
+                confidence=0.90,
+                bounding_box=BoundingBox(4.0, 5.0, 14.0, 15.0),
+            ),
+            PpeDetection(
+                item="goggles",
+                confidence=0.91,
+                bounding_box=BoundingBox(5.0, 6.0, 15.0, 16.0),
+            ),
         ]
 
-        assessments = self.scoring_agent.assess(PpeDetectionBatch(detections=detections))
-        coverage_assessments = [item for item in assessments if item.source == "ppe_coverage"]
+        assessments = self.scoring_agent.assess(
+            PpeDetectionBatch(detections=detections)
+        )
+        coverage_assessments = [
+            item for item in assessments if item.source == "ppe_coverage"
+        ]
 
         self.assertEqual(len(coverage_assessments), 1)
         self.assertEqual(coverage_assessments[0].label, "vest")
@@ -163,14 +239,34 @@ class RiskScoringSmokeTest(unittest.TestCase):
 
     def test_ppe_coverage_mixed_batch_rolls_up_tier_from_layer_1_results(self) -> None:
         detections = [
-            PpeDetection(item="helmet", confidence=0.95, bounding_box=BoundingBox(1.0, 2.0, 11.0, 12.0)),
-            PpeDetection(item="vest", confidence=0.92, bounding_box=BoundingBox(3.0, 4.0, 13.0, 14.0)),
-            PpeDetection(item="goggles", confidence=0.91, bounding_box=BoundingBox(5.0, 6.0, 15.0, 16.0)),
-            PpeDetection(item="no_gloves", confidence=0.89, bounding_box=BoundingBox(2.0, 3.0, 12.0, 13.0)),
+            PpeDetection(
+                item="helmet",
+                confidence=0.95,
+                bounding_box=BoundingBox(1.0, 2.0, 11.0, 12.0),
+            ),
+            PpeDetection(
+                item="vest",
+                confidence=0.92,
+                bounding_box=BoundingBox(3.0, 4.0, 13.0, 14.0),
+            ),
+            PpeDetection(
+                item="goggles",
+                confidence=0.91,
+                bounding_box=BoundingBox(5.0, 6.0, 15.0, 16.0),
+            ),
+            PpeDetection(
+                item="no_gloves",
+                confidence=0.89,
+                bounding_box=BoundingBox(2.0, 3.0, 12.0, 13.0),
+            ),
         ]
 
-        assessments = self.scoring_agent.assess(PpeDetectionBatch(detections=detections))
-        self.assertEqual(len([item for item in assessments if item.source == "ppe_coverage"]), 1)
+        assessments = self.scoring_agent.assess(
+            PpeDetectionBatch(detections=detections)
+        )
+        self.assertEqual(
+            len([item for item in assessments if item.source == "ppe_coverage"]), 1
+        )
         self.assertEqual(risk_scoring.overall_coverage_tier(assessments), 3)
 
     def test_heat_compliance_scoring_maps_boundary_levels(self) -> None:
@@ -277,6 +373,95 @@ class RiskScoringSmokeTest(unittest.TestCase):
 
         self.assertEqual(detection_assessment.source_detail, detection.to_dict())
         self.assertEqual(alert_assessment.source_detail, alert.to_dict())
+
+    def test_ppe_assessments_carry_the_batch_source_image_as_evidence(self) -> None:
+        detection = PpeDetection(
+            item="no_helmet",
+            confidence=0.91,
+            bounding_box=BoundingBox(1.0, 2.0, 11.0, 12.0),
+        )
+        batch = PpeDetectionBatch(
+            detections=[detection],
+            source_image="data/sample_images/image1006.jpg",
+        )
+
+        assessments = self.scoring_agent.assess(batch)
+
+        self.assertTrue(assessments)
+        for assessment in assessments:
+            self.assertEqual(
+                assessment.evidence_image, "data/sample_images/image1006.jpg"
+            )
+
+    def test_evidence_image_stores_a_repo_relative_path_not_a_machine_absolute_one(
+        self,
+    ) -> None:
+        """PpeDetectionAgent stores source_image as an absolute path (whatever form the
+        caller's image argument took). Persisting that as-is into evidence_image would bake
+        one machine's directory layout into the demo database, breaking evidence display for
+        anyone who clones the repo somewhere else. Store it relative to the working directory
+        instead, since every real entry point (scripts, dashboard, tests) runs from repo root.
+        """
+        detection = PpeDetection(
+            item="no_helmet",
+            confidence=0.91,
+            bounding_box=BoundingBox(1.0, 2.0, 11.0, 12.0),
+        )
+        absolute_source_image = str(
+            Path.cwd() / "data" / "sample_images" / "image1006.jpg"
+        )
+        batch = PpeDetectionBatch(
+            detections=[detection], source_image=absolute_source_image
+        )
+
+        assessments = self.scoring_agent.assess(batch)
+
+        self.assertTrue(assessments)
+        for assessment in assessments:
+            self.assertEqual(
+                assessment.evidence_image, "data/sample_images/image1006.jpg"
+            )
+            self.assertFalse(Path(assessment.evidence_image).is_absolute())
+
+    def test_ppe_assessments_leave_evidence_image_unset_without_a_source_frame(
+        self,
+    ) -> None:
+        detection = PpeDetection(
+            item="helmet", confidence=0.9, bounding_box=BoundingBox(1.0, 2.0, 5.0, 6.0)
+        )
+        batch = PpeDetectionBatch(detections=[detection], source_image=None)
+
+        assessments = self.scoring_agent.assess(batch)
+
+        self.assertTrue(assessments)
+        self.assertTrue(
+            all(assessment.evidence_image is None for assessment in assessments)
+        )
+
+    def test_heat_assessments_have_no_evidence_image(self) -> None:
+        """Heat detection runs on proxy/synthetic condition data, not imagery — there is no
+        frame to point at, unlike PPE detections."""
+        alert = WBGTRiskAlert(
+            city="Synthetic Site",
+            reading_at=self.reading_at,
+            wbgt_c=32.1,
+            level="Extreme",
+            title="Extreme Heat Risk",
+            threshold_min_c=32.0,
+            regulatory_actions=["Move workers to shade"],
+            ai_actions=["Suspend heavy outdoor work"],
+        )
+
+        assessment = self.scoring_agent.assess(
+            WBGTRiskBatch(
+                site_city="Synthetic Site",
+                reading_at=self.reading_at,
+                wbgt_c=32.1,
+                alerts=[alert],
+            )
+        )[0]
+
+        self.assertIsNone(assessment.evidence_image)
 
 
 if __name__ == "__main__":

@@ -5,4 +5,7 @@ __pycache__/
 yolo26n.pt
 runs/
 *.db
+
+construction-ppe.zip
+construction-ppe/
 !data/site_sense.db

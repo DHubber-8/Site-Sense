@@ -22,6 +22,7 @@ from agents.heat_detection.agent import (
     _build_openmeteo_geocoding_url,
 )
 
+
 class _FakeWeatherClient:
     def __init__(self, reading: WeatherForecastReading):
         self._reading = reading
@@ -54,7 +55,6 @@ class HeatDetectionSmokeTest(unittest.TestCase):
                     city="Shanghai",
                     forecast_date=date(2026, 8, 10),
                     max_temperature_c=temperature,
-                    metadata={"elevated_duration_minutes": 30, "ambient_temperature_c": 30.0},
                 )
                 alert = classify_heat_alert(reading)
 
@@ -72,7 +72,7 @@ class HeatDetectionSmokeTest(unittest.TestCase):
             max_temperature_c=37.5,
             provider="OpenWeather",
             source_url="https://example.test/weather",
-            metadata={"forecast_points_used": 4, "elevated_duration_minutes": 45, "ambient_temperature_c": 30.0},
+            metadata={"forecast_points_used": 4},
         )
         agent = HeatComplianceAlertAgent(
             site_city="Guangzhou",
@@ -91,26 +91,28 @@ class HeatDetectionSmokeTest(unittest.TestCase):
         self.assertIn("regulatory_actions", alert_payload)
         self.assertIn("ai_actions", alert_payload)
 
-    def test_classify_heat_alert_requires_proxy_safeguards(self) -> None:
-        cases = [
-            ({"elevated_duration_minutes": 15, "ambient_temperature_c": 30.0}, None),
-            ({"elevated_duration_minutes": 45, "ambient_temperature_c": 34.6}, None),
-        ]
+    def test_classify_heat_alert_fires_for_real_shaped_forecast_reading(self) -> None:
+        """A reading shaped like real client output (no elevated_duration_minutes /
+        ambient_temperature_c — those are WBGT sensor concepts, never populated by
+        OpenMeteoForecastClient or OpenWeatherForecastClient) must still alert once the
+        forecast crosses a Section 2 threshold, per taxonomy/heat_thresholds.md Section 2.
+        """
+        reading = WeatherForecastReading(
+            city="Shenzhen",
+            forecast_date=date(2026, 8, 10),
+            max_temperature_c=41.0,
+            provider="Open-Meteo",
+            metadata={
+                "forecast_points_used": 1,
+                "daily_variable": "temperature_2m_max",
+            },
+        )
 
-        for metadata, expected_level in cases:
-            with self.subTest(metadata=metadata):
-                reading = WeatherForecastReading(
-                    city="Shanghai",
-                    forecast_date=date(2026, 8, 10),
-                    max_temperature_c=37.5,
-                    metadata=metadata,
-                )
-                alert = classify_heat_alert(reading)
+        alert = classify_heat_alert(reading)
 
-                if expected_level is None:
-                    self.assertIsNone(alert)
-                else:
-                    self.assertIsNotNone(alert)
+        self.assertIsNotNone(alert)
+        assert alert is not None
+        self.assertEqual(alert.level, "Level 3")
 
     def test_assess_keeps_forecast_summary_when_below_threshold(self) -> None:
         reading = WeatherForecastReading(
@@ -136,7 +138,7 @@ class HeatDetectionSmokeTest(unittest.TestCase):
     def test_geocoding_request_includes_country_filter(self) -> None:
         url = _build_openmeteo_geocoding_url(OPENMETEO_GEOCODING_URL, "Shenzhen")
         self.assertIn("country_code=CN", url)
-    
+
     def test_open_meteo_client_returns_today_forecast(self) -> None:
         geocoding_payload = {
             "results": [
@@ -157,7 +159,10 @@ class HeatDetectionSmokeTest(unittest.TestCase):
             }
         }
 
-        with patch("agents.heat_detection.agent._load_json", side_effect=[geocoding_payload, forecast_payload]):
+        with patch(
+            "agents.heat_detection.agent._load_json",
+            side_effect=[geocoding_payload, forecast_payload],
+        ):
             client = OpenMeteoForecastClient()
             reading = client.get_todays_forecast("Shenzhen")
 
@@ -177,7 +182,9 @@ class HeatDetectionSmokeTest(unittest.TestCase):
             "city": {"timezone": 0, "provider": "OpenWeather"},
         }
 
-        with patch.dict(os.environ, {OPENWEATHER_API_KEY_ENV: "super-secret"}, clear=False):
+        with patch.dict(
+            os.environ, {OPENWEATHER_API_KEY_ENV: "super-secret"}, clear=False
+        ):
             with patch("agents.heat_detection.agent._load_json", return_value=payload):
                 client = OpenWeatherForecastClient()
                 reading = client.get_todays_forecast("Shenzhen")
@@ -188,7 +195,9 @@ class HeatDetectionSmokeTest(unittest.TestCase):
     def test_openweather_client_redacts_api_key_from_source_url(self) -> None:
         captured_source_urls: list[str] = []
 
-        def fake_parse(city: str, payload: dict[str, object], source_url: str) -> WeatherForecastReading:
+        def fake_parse(
+            city: str, payload: dict[str, object], source_url: str
+        ) -> WeatherForecastReading:
             captured_source_urls.append(source_url)
             return WeatherForecastReading(
                 city=city,
@@ -199,9 +208,16 @@ class HeatDetectionSmokeTest(unittest.TestCase):
                 metadata={"timezone_offset_seconds": 28800},
             )
 
-        with patch.dict(os.environ, {OPENWEATHER_API_KEY_ENV: "super-secret"}, clear=False):
-            with patch("agents.heat_detection.agent._load_json", return_value={}) as load_json:
-                with patch("agents.heat_detection.agent._parse_openweather_forecast", side_effect=fake_parse):
+        with patch.dict(
+            os.environ, {OPENWEATHER_API_KEY_ENV: "super-secret"}, clear=False
+        ):
+            with patch(
+                "agents.heat_detection.agent._load_json", return_value={}
+            ) as load_json:
+                with patch(
+                    "agents.heat_detection.agent._parse_openweather_forecast",
+                    side_effect=fake_parse,
+                ):
                     client = OpenWeatherForecastClient()
                     reading = client.get_todays_forecast("Shenzhen")
 
@@ -223,30 +239,56 @@ class HeatDetectionSmokeTest(unittest.TestCase):
         self.assertNotIn("appid=", serialized["weather_source_url"] or "")
 
     def test_open_meteo_client_rejects_non_finite_temperatures(self) -> None:
-        geocoding_payload = {"results": [{"name": "Wuhan", "latitude": 30.6, "longitude": 114.3}]}
-        forecast_payload = {"daily": {"time": ["2026-08-10"], "temperature_2m_max": [float("nan")]}}
-        with patch("agents.heat_detection.agent._load_json", side_effect=[geocoding_payload, forecast_payload]):
+        geocoding_payload = {
+            "results": [{"name": "Wuhan", "latitude": 30.6, "longitude": 114.3}]
+        }
+        forecast_payload = {
+            "daily": {"time": ["2026-08-10"], "temperature_2m_max": [float("nan")]}
+        }
+        with patch(
+            "agents.heat_detection.agent._load_json",
+            side_effect=[geocoding_payload, forecast_payload],
+        ):
             client = OpenMeteoForecastClient()
             with self.assertRaises(RuntimeError):
                 client.get_todays_forecast("Wuhan")
 
     def test_open_meteo_client_raises_on_empty_geocoding_results(self) -> None:
-        with patch("agents.heat_detection.agent._load_json", return_value={"results": []}):
+        with patch(
+            "agents.heat_detection.agent._load_json", return_value={"results": []}
+        ):
             client = OpenMeteoForecastClient()
             with self.assertRaises(RuntimeError):
                 client.get_todays_forecast("Nowhere City")
 
     def test_open_meteo_client_raises_on_missing_daily_data(self) -> None:
-        geocoding_payload = {"results": [{"name": "Wuhan", "latitude": 30.6, "longitude": 114.3}]}
-        with patch("agents.heat_detection.agent._load_json", side_effect=[geocoding_payload, {}]):
+        geocoding_payload = {
+            "results": [{"name": "Wuhan", "latitude": 30.6, "longitude": 114.3}]
+        }
+        with patch(
+            "agents.heat_detection.agent._load_json",
+            side_effect=[geocoding_payload, {}],
+        ):
             client = OpenMeteoForecastClient()
             with self.assertRaises(RuntimeError):
                 client.get_todays_forecast("Wuhan")
 
-    def test_open_meteo_client_raises_on_mismatched_date_temperature_lengths(self) -> None:
-        geocoding_payload = {"results": [{"name": "Wuhan", "latitude": 30.6, "longitude": 114.3}]}
-        forecast_payload = {"daily": {"time": ["2026-08-10", "2026-08-11"], "temperature_2m_max": [38.0]}}
-        with patch("agents.heat_detection.agent._load_json", side_effect=[geocoding_payload, forecast_payload]):
+    def test_open_meteo_client_raises_on_mismatched_date_temperature_lengths(
+        self,
+    ) -> None:
+        geocoding_payload = {
+            "results": [{"name": "Wuhan", "latitude": 30.6, "longitude": 114.3}]
+        }
+        forecast_payload = {
+            "daily": {
+                "time": ["2026-08-10", "2026-08-11"],
+                "temperature_2m_max": [38.0],
+            }
+        }
+        with patch(
+            "agents.heat_detection.agent._load_json",
+            side_effect=[geocoding_payload, forecast_payload],
+        ):
             client = OpenMeteoForecastClient()
             with self.assertRaises(RuntimeError):
                 client.get_todays_forecast("Wuhan")
@@ -290,7 +332,9 @@ class HeatDetectionSmokeTest(unittest.TestCase):
                 self._items = list(items)
                 self._index = 0
 
-            def get_reading(self, city: str, reading_at: datetime | None = None) -> WBGTReading:
+            def get_reading(
+                self, city: str, reading_at: datetime | None = None
+            ) -> WBGTReading:
                 item = self._items[self._index]
                 self._index += 1
                 return item
@@ -355,7 +399,9 @@ class HeatDetectionSmokeTest(unittest.TestCase):
                 self._items = list(items)
                 self._index = 0
 
-            def get_reading(self, city: str, reading_at: datetime | None = None) -> WBGTReading:
+            def get_reading(
+                self, city: str, reading_at: datetime | None = None
+            ) -> WBGTReading:
                 item = self._items[self._index]
                 self._index += 1
                 return item
@@ -381,18 +427,28 @@ class HeatDetectionSmokeTest(unittest.TestCase):
             reading_source=SimulatedWBGTReadingSource(seed=42),
         )
 
-        batch = agent.assess(reading_at=datetime(2026, 8, 10, 12, 0, tzinfo=timezone.utc), zone_id="zone-A")
+        batch = agent.assess(
+            reading_at=datetime(2026, 8, 10, 12, 0, tzinfo=timezone.utc),
+            zone_id="zone-A",
+        )
 
         self.assertEqual(batch.site_city, "Guangzhou")
         self.assertEqual(batch.reading_source_name, "Simulated WBGT proxy")
-        self.assertIn("level", batch.alerts[0].to_dict()) if batch.alerts else self.assertEqual(batch.alerts, [])
+        (
+            self.assertIn("level", batch.alerts[0].to_dict())
+            if batch.alerts
+            else self.assertEqual(batch.alerts, [])
+        )
 
     def test_wbgt_agent_can_use_custom_reading_source(self) -> None:
         class _FixedWBGTSource:
-            def get_reading(self, city: str, reading_at: datetime | None = None) -> WBGTReading:
+            def get_reading(
+                self, city: str, reading_at: datetime | None = None
+            ) -> WBGTReading:
                 return WBGTReading(
                     city=city,
-                    reading_at=reading_at or datetime(2026, 8, 10, 13, 0, tzinfo=timezone.utc),
+                    reading_at=reading_at
+                    or datetime(2026, 8, 10, 13, 0, tzinfo=timezone.utc),
                     air_temperature_c=35.0,
                     relative_humidity_percent=70.0,
                     wind_speed_mps=1.2,
@@ -402,10 +458,15 @@ class HeatDetectionSmokeTest(unittest.TestCase):
                     metadata={"simulation_mode": True},
                 )
 
-        agent = WBGTRiskAgent(site_city="Shenzhen", reading_source=_FixedWBGTSource(), min_consecutive_readings=1)
+        agent = WBGTRiskAgent(
+            site_city="Shenzhen",
+            reading_source=_FixedWBGTSource(),
+            min_consecutive_readings=1,
+        )
         batch = agent.assess(zone_id="zone-1")
 
         self.assertEqual(batch.alerts[0].level, "High Risk")
+
 
 if __name__ == "__main__":
     unittest.main()

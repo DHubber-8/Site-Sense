@@ -1,11 +1,36 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from pathlib import Path
 
 from agents.heat_detection.schema import HeatComplianceAlertBatch, WBGTRiskBatch
 from agents.ppe_detection.schema import PpeDetectionBatch
 
 from .schema import RiskAssessment, Severity
+
+
+def _evidence_path(source_image: str | None) -> str | None:
+    """Normalize a detection batch's source_image for portable storage.
+
+    PpeDetectionAgent stores source_image in whatever form the caller's image path took —
+    in practice, an absolute path baked to one machine's directory layout. Persisting that
+    as-is would break evidence display for anyone who clones the repo somewhere else. Every
+    real entry point (scripts, dashboard, tests) runs with the repo root as the working
+    directory, so store the path relative to it instead; if a caller passes something outside
+    the working directory, fall back to the original value rather than losing it. Stored with
+    forward slashes (not the OS-native separator) so a database seeded on Windows still
+    resolves correctly when read back on macOS/Linux, and vice versa.
+    """
+    if source_image is None:
+        return None
+    path = Path(source_image)
+    if not path.is_absolute():
+        return path.as_posix()
+    try:
+        return path.relative_to(Path.cwd()).as_posix()
+    except ValueError:
+        return source_image
+
 
 PPE_SEVERITY_BY_LABEL: dict[str, Severity] = {
     "helmet": Severity.NONE,
@@ -78,6 +103,7 @@ def assess_ppe(
     """Convert PPE violation detections into normalized risk assessments."""
 
     assessed_at = datetime.now(timezone.utc)
+    evidence_image = _evidence_path(batch.source_image)
     assessments: list[RiskAssessment] = []
     for detection in batch.detections:
         severity = PPE_SEVERITY_BY_LABEL.get(detection.item)
@@ -107,6 +133,7 @@ def assess_ppe(
                 source_detail=detection.to_dict(),
                 assessed_at=assessed_at,
                 requires_review=requires_review,
+                evidence_image=evidence_image,
             )
         )
 
@@ -158,6 +185,7 @@ def assess_ppe_coverage(batch: PpeDetectionBatch) -> list[RiskAssessment]:
     """Flag unaccounted core PPE items for manual review at batch level."""
 
     assessed_at = datetime.now(timezone.utc)
+    evidence_image = _evidence_path(batch.source_image)
     observed_labels = {detection.item for detection in batch.detections}
     coverage_assessments: list[RiskAssessment] = []
 
@@ -184,6 +212,7 @@ def assess_ppe_coverage(batch: PpeDetectionBatch) -> list[RiskAssessment]:
                 },
                 assessed_at=assessed_at,
                 requires_review=True,
+                evidence_image=evidence_image,
             )
         )
 

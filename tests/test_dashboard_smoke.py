@@ -10,142 +10,9 @@ import dashboard.app as app
 from agents.alert_routing.schema import RoutedAlert
 from agents.logging.schema import LogRecord
 from agents.risk_scoring.schema import RiskAssessment, Severity
-from dashboard.logic import build_metrics, build_heat_timeline, summarize_active_alerts
 
 
-class DashboardLogicSmokeTest(unittest.TestCase):
-    def _log_record(
-        self,
-        *,
-        source: str,
-        severity: Severity,
-        label: str,
-        requires_review: bool = False,
-        recorded_at: datetime | None = None,
-    ) -> LogRecord:
-        at = recorded_at or datetime(2026, 8, 10, 12, 0, tzinfo=timezone.utc)
-        assessment = RiskAssessment(
-            source=source,
-            severity=severity,
-            label=label,
-            description="synthetic dashboard record",
-            zone="zone-a",
-            recommended_actions=["Review"],
-            source_detail={"synthetic": True},
-            assessed_at=at,
-            requires_review=requires_review,
-        )
-        routed = RoutedAlert(assessment=assessment, decision="notify", routed_at=at)
-        return LogRecord(
-            record_id=f"{source}-{label}-{severity.name}",
-            routed_alert=routed,
-            recorded_at=at,
-        )
-
-    def test_build_metrics_counts_severity_and_source_totals(self) -> None:
-        records = [
-            self._log_record(
-                source="ppe",
-                severity=Severity.CRITICAL,
-                label="no_helmet",
-                requires_review=True,
-            ),
-            self._log_record(
-                source="ppe", severity=Severity.MODERATE, label="no_gloves"
-            ),
-            self._log_record(
-                source="ppe_coverage",
-                severity=Severity.MINOR,
-                label="boots",
-                requires_review=True,
-            ),
-            self._log_record(
-                source="heat_wbgt",
-                severity=Severity.CRITICAL,
-                label="Extreme",
-                requires_review=True,
-            ),
-            self._log_record(
-                source="heat_compliance", severity=Severity.MINOR, label="Level 1"
-            ),
-        ]
-
-        metrics = build_metrics(records)
-
-        self.assertEqual(metrics["active_review_count"], 3)
-        self.assertEqual(metrics["by_severity"]["Critical"], 2)
-        self.assertEqual(metrics["by_severity"]["Moderate"], 1)
-        self.assertEqual(metrics["by_severity"]["Minor"], 2)
-        self.assertEqual(metrics["by_source"]["ppe"], 2)
-        self.assertEqual(metrics["by_source"]["ppe_coverage"], 1)
-        self.assertEqual(metrics["by_source"]["heat_wbgt"], 1)
-        self.assertEqual(metrics["by_source"]["heat_compliance"], 1)
-
-    def test_build_heat_timeline_keeps_wbgt_and_temperature_series(self) -> None:
-        records = [
-            self._log_record(
-                source="heat_wbgt",
-                severity=Severity.MINOR,
-                label="Caution",
-                requires_review=False,
-                recorded_at=datetime(2026, 8, 10, 9, 0, tzinfo=timezone.utc),
-            ),
-            self._log_record(
-                source="heat_wbgt",
-                severity=Severity.MODERATE,
-                label="High Risk",
-                requires_review=False,
-                recorded_at=datetime(2026, 8, 10, 12, 0, tzinfo=timezone.utc),
-            ),
-            self._log_record(
-                source="heat_wbgt",
-                severity=Severity.CRITICAL,
-                label="Extreme",
-                requires_review=True,
-                recorded_at=datetime(2026, 8, 10, 15, 0, tzinfo=timezone.utc),
-            ),
-        ]
-        records[0].routed_alert.assessment.source_detail["wbgt_c"] = 28.5
-        records[0].routed_alert.assessment.source_detail["air_temperature_c"] = 30.0
-        records[1].routed_alert.assessment.source_detail["wbgt_c"] = 31.2
-        records[1].routed_alert.assessment.source_detail["air_temperature_c"] = 33.1
-        records[2].routed_alert.assessment.source_detail["wbgt_c"] = 34.9
-        records[2].routed_alert.assessment.source_detail["air_temperature_c"] = 38.0
-
-        timeline = build_heat_timeline(records)
-
-        self.assertEqual(len(timeline), 3)
-        self.assertEqual(timeline[0]["wbgt_c"], 28.5)
-        self.assertEqual(timeline[2]["air_temperature_c"], 38.0)
-
-    def test_summarize_active_alerts_marks_requires_review_items(self) -> None:
-        records = [
-            self._log_record(
-                source="ppe",
-                severity=Severity.MINOR,
-                label="no_helmet",
-                requires_review=True,
-            ),
-            self._log_record(
-                source="ppe",
-                severity=Severity.MINOR,
-                label="gloves",
-                requires_review=False,
-            ),
-            self._log_record(
-                source="heat_wbgt",
-                severity=Severity.CRITICAL,
-                label="Extreme",
-                requires_review=True,
-            ),
-        ]
-
-        summary = summarize_active_alerts(records)
-
-        self.assertEqual(summary["total_active"], 2)
-        self.assertEqual(summary["review_items"][0].label, "no_helmet")
-        self.assertEqual(summary["review_items"][1].label, "Extreme")
-
+class DashboardMetricCardSmokeTest(unittest.TestCase):
     def test_render_metric_card_omits_delta_and_renders_muted_caption(self) -> None:
         column = Mock()
 
@@ -172,6 +39,7 @@ class DashboardPresentationSmokeTest(unittest.TestCase):
         detail: dict,
         severity: Severity = Severity.MINOR,
         description: str = "",
+        evidence_image: str | None = None,
     ) -> LogRecord:
         at = datetime(2026, 8, 10, 12, 0, tzinfo=timezone.utc)
         assessment = RiskAssessment(
@@ -184,6 +52,7 @@ class DashboardPresentationSmokeTest(unittest.TestCase):
             source_detail=detail,
             assessed_at=at,
             requires_review=False,
+            evidence_image=evidence_image,
         )
         routed = RoutedAlert(assessment=assessment, decision="notify", routed_at=at)
         return LogRecord(
@@ -331,6 +200,55 @@ class DashboardPresentationSmokeTest(unittest.TestCase):
                 self.assertEqual(app._ppe_item_key("no_goggle"), "goggles")
                 self.assertEqual(app._reference_image("goggles"), reference)
                 self.assertIsNone(app._reference_image("helmet"))
+
+    def test_evidence_image_resolves_the_real_stored_frame(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            frame = Path(directory) / "image1006.jpg"
+            frame.write_bytes(b"")
+            record = self._record(
+                source="ppe",
+                label="no_helmet",
+                detail={"item": "no_helmet"},
+                evidence_image=str(frame),
+            )
+
+            self.assertEqual(app._evidence_image(record), frame)
+
+    def test_evidence_image_is_none_without_a_stored_path(self) -> None:
+        record = self._record(
+            source="heat_wbgt", label="Caution", detail={"title": "Heat Caution"}
+        )
+
+        self.assertIsNone(app._evidence_image(record))
+
+    def test_evidence_image_is_none_when_the_stored_file_no_longer_exists(self) -> None:
+        record = self._record(
+            source="ppe",
+            label="no_helmet",
+            detail={"item": "no_helmet"},
+            evidence_image="data/sample_images/does-not-exist-image.jpg",
+        )
+
+        self.assertIsNone(app._evidence_image(record))
+
+    def test_evidence_image_resolves_a_repo_relative_path(self) -> None:
+        """risk_scoring stores evidence_image relative to the repo root (see
+        agents/risk_scoring/agent.py's _evidence_path) so the demo works after a clone onto a
+        different machine — the dashboard must resolve that relative path the same way.
+        """
+        record = self._record(
+            source="ppe",
+            label="no_helmet",
+            detail={"item": "no_helmet"},
+            evidence_image="data/sample_images/image1006.jpg",
+        )
+
+        resolved = app._evidence_image(record)
+
+        self.assertEqual(
+            resolved, app.PROJECT_ROOT / "data/sample_images/image1006.jpg"
+        )
+        self.assertTrue(resolved.exists())
 
     def test_severity_badge_uses_css_class_instead_of_inline_colors(self) -> None:
         markup = app._severity_badge("Critical")

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import sqlite3
 import tempfile
+import threading
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -8,6 +10,41 @@ from pathlib import Path
 from agents.alert_routing.schema import RoutedAlert
 from agents.logging import LoggingAgent
 from agents.risk_scoring.schema import RiskAssessment, Severity
+
+_PRE_MIGRATION_SCHEMA = """
+CREATE TABLE IF NOT EXISTS records (
+    record_id TEXT PRIMARY KEY,
+    source TEXT NOT NULL,
+    severity INTEGER NOT NULL,
+    label TEXT NOT NULL,
+    description TEXT NOT NULL,
+    zone TEXT,
+    recommended_actions TEXT NOT NULL,
+    source_detail TEXT NOT NULL,
+    assessed_at TEXT NOT NULL,
+    decision TEXT NOT NULL,
+    routed_at TEXT NOT NULL,
+    recorded_at TEXT NOT NULL
+)
+"""
+
+_PRE_EVIDENCE_IMAGE_SCHEMA = """
+CREATE TABLE IF NOT EXISTS records (
+    record_id TEXT PRIMARY KEY,
+    source TEXT NOT NULL,
+    severity INTEGER NOT NULL,
+    label TEXT NOT NULL,
+    description TEXT NOT NULL,
+    zone TEXT,
+    recommended_actions TEXT NOT NULL,
+    source_detail TEXT NOT NULL,
+    assessed_at TEXT NOT NULL,
+    requires_review INTEGER NOT NULL DEFAULT 0,
+    decision TEXT NOT NULL,
+    routed_at TEXT NOT NULL,
+    recorded_at TEXT NOT NULL
+)
+"""
 
 
 class LoggingSmokeTest(unittest.TestCase):
@@ -24,6 +61,8 @@ class LoggingSmokeTest(unittest.TestCase):
         severity: Severity,
         source: str,
         timestamp: datetime | None = None,
+        requires_review: bool = False,
+        evidence_image: str | None = None,
     ) -> RoutedAlert:
         timestamp = timestamp or self.timestamp
         assessment = RiskAssessment(
@@ -35,6 +74,8 @@ class LoggingSmokeTest(unittest.TestCase):
             recommended_actions=["Test action"],
             source_detail={"synthetic": True, "source": source},
             assessed_at=timestamp,
+            requires_review=requires_review,
+            evidence_image=evidence_image,
         )
         return RoutedAlert(
             assessment=assessment,
@@ -55,6 +96,89 @@ class LoggingSmokeTest(unittest.TestCase):
         self.assertEqual(recent[0].record_id, record.record_id)
         self.assertEqual(recent[0].routed_alert.to_dict(), routed_alert.to_dict())
         self.assertIsInstance(record.recorded_at, datetime)
+
+    def test_record_persists_requires_review_flag(self) -> None:
+        routed_alert = self._routed_alert(Severity.MINOR, "ppe", requires_review=True)
+
+        self.store.record(routed_alert)
+        recent = self.store.recent()
+
+        self.assertTrue(recent[0].routed_alert.assessment.requires_review)
+
+    def test_record_persists_evidence_image_path(self) -> None:
+        routed_alert = self._routed_alert(
+            Severity.CRITICAL,
+            "ppe",
+            evidence_image="data/sample_images/image1006.jpg",
+        )
+
+        self.store.record(routed_alert)
+        recent = self.store.recent()
+
+        self.assertEqual(
+            recent[0].routed_alert.assessment.evidence_image,
+            "data/sample_images/image1006.jpg",
+        )
+
+    def test_record_persists_no_evidence_image_for_heat_sources(self) -> None:
+        routed_alert = self._routed_alert(Severity.MODERATE, "heat_wbgt")
+
+        self.store.record(routed_alert)
+        recent = self.store.recent()
+
+        self.assertIsNone(recent[0].routed_alert.assessment.evidence_image)
+
+    def test_evidence_image_column_migrates_onto_an_older_database(self) -> None:
+        """A database created before evidence_image existed (but after requires_review) must
+        gain the column automatically, the same way requires_review itself was added."""
+        database_path = Path(self.temporary_directory.name) / "pre_evidence_image.db"
+        connection = sqlite3.connect(database_path)
+        connection.execute(_PRE_EVIDENCE_IMAGE_SCHEMA)
+        connection.commit()
+        connection.close()
+
+        store = LoggingAgent(database_path)
+        store.record(
+            self._routed_alert(
+                Severity.CRITICAL,
+                "ppe",
+                evidence_image="data/sample_images/image1006.jpg",
+            )
+        )
+
+        self.assertEqual(
+            store.recent()[0].routed_alert.assessment.evidence_image,
+            "data/sample_images/image1006.jpg",
+        )
+
+    def test_concurrent_instantiation_against_a_pre_migration_database_does_not_crash(
+        self,
+    ) -> None:
+        """Two LoggingAgents constructed at the same moment against a database still on the
+        old (pre-requires_review) schema must not race on the ALTER TABLE migration."""
+        database_path = Path(self.temporary_directory.name) / "pre_migration.db"
+        connection = sqlite3.connect(database_path)
+        connection.execute(_PRE_MIGRATION_SCHEMA)
+        connection.commit()
+        connection.close()
+
+        errors: list[BaseException] = []
+
+        def construct_agent() -> None:
+            try:
+                LoggingAgent(database_path)
+            except (
+                BaseException
+            ) as exc:  # noqa: BLE001 - capturing for the assertion below
+                errors.append(exc)
+
+        threads = [threading.Thread(target=construct_agent) for _ in range(8)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+        self.assertEqual(errors, [])
 
     def test_query_methods_filter_varied_records(self) -> None:
         first = self.store.record(
