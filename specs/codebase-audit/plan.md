@@ -1,9 +1,11 @@
 # Codebase Audit — Cleanup Plan
 
-Status: audit complete. **P0, P1, and P2-7/P2-8 implemented and verified** (test-first, full
-suite green, re-seeded demo data confirmed the real-world P0 fixes). P2-9 (splitting
-`dashboard/app.py`) is left undone by design — optional and invasive, per the
-spec-before-code workflow in `AGENTS.md`.
+Status: two review rounds complete. **Round 1 (P0-P2-9)** and **Round 2 (D1-D4, a deeper
+concurrency/security/integrity-focused pass)** both implemented and verified — test-first where
+behavior changed, full suite green throughout, re-seeded demo data confirmed the real-world P0
+fixes, live dashboard boot confirmed the P2-9 module split, and a real race condition (D1) was
+reproduced before and after its fix. Round 2 also caught and corrected a Round-1 status that had
+silently regressed (P2-8). See "Round 2" below.
 
 ## Scope & method
 
@@ -109,11 +111,8 @@ dashboard grows further. Lower priority than P0/P1.
 | P1-5 ✅ | Extracted `resolve_trained_checkpoint()` into `agents/ppe_detection/config.py`; both scripts now call it instead of maintaining identical local copies | `agents/ppe_detection/config.py`, `scripts/seed_demo_data.py`, `scripts/build_reference_ppe.py`, `tests/test_ppe_detection_smoke.py` | New `ResolveTrainedCheckpointSmokeTest` (3 cases: prefers configured, falls back to newest run, returns `None`); confirmed against the real repo it still resolves `runs/detect/train-10/weights/best.pt` |
 | P1-6 ✅ | Reordered `_load_model()`'s cache check ahead of the `model_loader` branch so a loaded model is actually reused | `agents/ppe_detection/agent.py` | New test `test_model_loader_is_only_invoked_once_across_detect_calls` (RED confirmed: 2 calls before the fix; GREEN after) |
 | P2-7 ✅ | Added `black` as a dev dependency and a minimal `[tool.black]` config (`target-version = ["py314"]`), matching the `requires-python` floor. Ran it repo-wide | `pyproject.toml`, `uv.lock`, 14 files reformatted (whitespace/line-wrapping only) | `uv run black --check .` → `32 files would be left unchanged`; full suite green before and after |
-| P2-8 ✅ | Parenthesized the three PEP 758 bare multi-exception `except` clauses for broad tooling/reader compatibility (was valid on `>=3.14` but unrecognized by most linters/highlighters) | `dashboard/app.py` | Full suite green before and after (behavior-neutral) |
-| P2-9 | Optional, not done: split `dashboard/app.py` into styles/data/render modules — larger, invasive refactor; do on request | `dashboard/` | — |
-| P2-7 | Add `[tool.ruff]`/`black` config + dev dependency, run once repo-wide | `pyproject.toml` | `uv run ruff check .` / `uv run black --check .` clean |
-| P2-8 | Parenthesize the three PEP 758 `except` clauses | `dashboard/app.py` | Full suite green (behavior-neutral) |
-| P2-9 | (Optional, later) Split `dashboard/app.py` into styles/data/render modules | `dashboard/` | Full suite + manual dashboard check |
+| P2-8 ❌→ reverted | **Correction:** originally marked done (parenthesized the three PEP 758 `except` clauses), but this was never actually stable — `black`, once it targets `py314+` (forced by `requires-python = ">=3.14"`, with or without an explicit `[tool.black] target-version`), rewrites `except (A, B):` back to `except A, B:` as its canonical form for that target. Every subsequent `black .` run (required by `AGENTS.md`, enforced by P2-7) silently undid the fix — confirmed by isolating it in a throwaway probe file. P2-7 and P2-8 were fighting each other; P2-7 (matching the formatter to the project's real `requires-python`) is the correct one to keep, so P2-8 is abandoned and the bare-comma form is accepted as canonical | `dashboard/app.py` | `black .` twice in a row now reports `34 files left unchanged` both times — confirmed stable/idempotent; full suite green |
+| P2-9 ✅ | Split `dashboard/app.py` (1074 lines) into `dashboard/styles.py` (`inject_css()`, ~110 lines of pure CSS, zero logic) and `dashboard/data.py` (the LoggingAgent I/O boundary: `DATABASE_PATH`, `SOURCE_LABELS`, `STATUS_LABELS`, `_agent`, `_assessment`, `_query_records`, `_today_records`, ~90 lines). `app.py` (now 904 lines) keeps every function the test suite touches by name (`_detail_rows`, `_incident_name`, `_visible_alerts`, etc.) plus all page rendering — checked first that none of the moved functions were referenced as `app.X` in tests, so zero test-file changes were needed | `dashboard/styles.py` (new), `dashboard/data.py` (new), `dashboard/app.py` | Full suite green before and after; `black --check .` clean; actually launched `streamlit run dashboard/app.py` headlessly — HTTP 200, clean server log, no traceback |
 
 ## Ownership note
 
@@ -124,3 +123,39 @@ detection; E2 owns risk-scoring/logging/dashboard). P1/P2 are safe to implement 
 Implementation, when approved, should proceed P0 → P1 → P2, one commit per numbered item, with
 a test written or fixed before each change per the project's TDD/hostile-reviewer testing
 standard.
+
+## Round 2 — deep-dive review (post P0-P2)
+
+A second, deeper pass over the whole codebase after P0-P2 landed, specifically hunting for
+what a correctness/reuse-focused first pass wouldn't naturally surface: concurrency, security,
+resource handling, and documentation-integrity issues.
+
+**D1 ✅ — `LoggingAgent` schema migration had a check-then-act race.** `_migrate_requires_review_column`
+read `PRAGMA table_info` then conditionally ran `ALTER TABLE` with no locking. Reproduced directly:
+8 threads constructing `LoggingAgent` against the same pre-migration database crashed 7 of 8 with
+`sqlite3.OperationalError: duplicate column name`. `dashboard/data.py`'s `_agent()` (called
+3-4 times per Streamlit rerun before D2, below) made this the normal case, not an edge case, for
+any concurrent dashboard session hitting an unmigrated `data/site_sense.db`. Fixed by catching the
+"duplicate column" `OperationalError` as a no-op — the losing thread's schema is already correct,
+it just didn't win the race to add it. New test
+`test_concurrent_instantiation_against_a_pre_migration_database_does_not_crash` (RED confirmed: 7/8
+threads raised; GREEN after). Files: `agents/logging/agent.py`, `tests/test_logging_smoke.py`.
+
+**D2 ✅ — `dashboard/data.py`'s `_agent()` reconnected on every call.** Original first-pass finding
+that never got a P-number in the table above (a gap in the initial triage). Every Streamlit rerun
+(every filter change, every incident expand) opened 3-4 fresh sqlite connections and re-ran
+`CREATE TABLE IF NOT EXISTS` + the migration check purely to read the same data. Fixed with
+`@st.cache_resource` on `_agent()` — one `LoggingAgent` per process; each query still opens its own
+short-lived connection, only the one-time setup work is now actually one-time. This also shrinks
+the race window in D1 to process-startup only. File: `dashboard/data.py`.
+
+**D3 ✅ — dead `_agent` import in `dashboard/app.py`.** Left over from the P2-9 split: `app.py`
+imported `_agent` from `dashboard.data` but never called it (the functions that need it,
+`_query_records`/`_today_records`, live in `data.py` itself). Removed.
+
+**D4 — P2-8 correction.** See the corrected P2-8 row above — not a new defect, a discovery that the
+original "done" claim didn't hold, caught by re-grepping for the specific fix instead of trusting a
+general `black --check .` pass.
+
+Verification for all of D1-D3: full suite green (76 passed, up from 75 — the one new race test),
+`black --check .` clean, `python -m py_compile` clean on every touched file.

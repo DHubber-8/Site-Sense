@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import sqlite3
 import tempfile
+import threading
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -8,6 +10,23 @@ from pathlib import Path
 from agents.alert_routing.schema import RoutedAlert
 from agents.logging import LoggingAgent
 from agents.risk_scoring.schema import RiskAssessment, Severity
+
+_PRE_MIGRATION_SCHEMA = """
+CREATE TABLE IF NOT EXISTS records (
+    record_id TEXT PRIMARY KEY,
+    source TEXT NOT NULL,
+    severity INTEGER NOT NULL,
+    label TEXT NOT NULL,
+    description TEXT NOT NULL,
+    zone TEXT,
+    recommended_actions TEXT NOT NULL,
+    source_detail TEXT NOT NULL,
+    assessed_at TEXT NOT NULL,
+    decision TEXT NOT NULL,
+    routed_at TEXT NOT NULL,
+    recorded_at TEXT NOT NULL
+)
+"""
 
 
 class LoggingSmokeTest(unittest.TestCase):
@@ -65,6 +84,35 @@ class LoggingSmokeTest(unittest.TestCase):
         recent = self.store.recent()
 
         self.assertTrue(recent[0].routed_alert.assessment.requires_review)
+
+    def test_concurrent_instantiation_against_a_pre_migration_database_does_not_crash(
+        self,
+    ) -> None:
+        """Two LoggingAgents constructed at the same moment against a database still on the
+        old (pre-requires_review) schema must not race on the ALTER TABLE migration."""
+        database_path = Path(self.temporary_directory.name) / "pre_migration.db"
+        connection = sqlite3.connect(database_path)
+        connection.execute(_PRE_MIGRATION_SCHEMA)
+        connection.commit()
+        connection.close()
+
+        errors: list[BaseException] = []
+
+        def construct_agent() -> None:
+            try:
+                LoggingAgent(database_path)
+            except (
+                BaseException
+            ) as exc:  # noqa: BLE001 - capturing for the assertion below
+                errors.append(exc)
+
+        threads = [threading.Thread(target=construct_agent) for _ in range(8)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+        self.assertEqual(errors, [])
 
     def test_query_methods_filter_varied_records(self) -> None:
         first = self.store.record(

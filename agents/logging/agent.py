@@ -61,13 +61,25 @@ class LoggingAgent:
 
     @staticmethod
     def _migrate_requires_review_column(connection: sqlite3.Connection) -> None:
-        """Add requires_review to a database created before this column existed."""
+        """Add requires_review to a database created before this column existed.
+
+        Check-then-act against PRAGMA table_info is inherently racy: two LoggingAgents
+        constructed at the same moment (e.g. concurrent dashboard sessions, or a dashboard
+        left open while a seed script re-runs) can both see the column missing and both
+        attempt the ALTER TABLE. Only one wins; treat the other's "duplicate column" failure
+        as success rather than letting it crash the caller.
+        """
 
         columns = {row[1] for row in connection.execute("PRAGMA table_info(records)")}
-        if "requires_review" not in columns:
+        if "requires_review" in columns:
+            return
+        try:
             connection.execute(
                 "ALTER TABLE records ADD COLUMN requires_review INTEGER NOT NULL DEFAULT 0"
             )
+        except sqlite3.OperationalError as exc:
+            if "duplicate column name" not in str(exc):
+                raise
 
     def record(
         self,
