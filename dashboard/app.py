@@ -186,14 +186,31 @@ def _ppe_item_key(label: str) -> str:
 def _reference_image(item_key: str) -> Path | None:
     """Locate a site-supplied reference photo of correct PPE for this item, if any.
 
-    These are illustrative reference images only, never incident evidence: the logging schema
-    does not persist the detection's source frame, so no stored record can point at one.
+    These are illustrative reference images only, distinct from _evidence_image below: a
+    reference photo shows what correct PPE looks like in general, not what happened in this
+    particular incident.
     """
     for suffix in REFERENCE_IMAGE_SUFFIXES:
         candidate = REFERENCE_IMAGE_DIR / f"{item_key}{suffix}"
         if candidate.exists():
             return candidate
     return None
+
+
+def _evidence_image(record: LogRecord) -> Path | None:
+    """The real frame a PPE detection came from, when the record has one on disk.
+
+    Distinct from _reference_image: this points at the actual incident, not a stand-in
+    "correct PPE" example. Silently absent for heat sources (no frame exists to point at) and
+    for any record whose stored path no longer resolves.
+    """
+    path_str = _assessment(record).evidence_image
+    if not path_str:
+        return None
+    path = Path(path_str)
+    if not path.is_absolute():
+        path = PROJECT_ROOT / path
+    return path if path.exists() else None
 
 
 @st.cache_data(show_spinner=False)
@@ -237,6 +254,18 @@ def _render_reference_image(
             st.image(image.rotate(270, expand=True), width=width)
     else:
         st.image(str(path), width=width)
+
+
+def _render_evidence_image(record: LogRecord, *, width: int = REFERENCE_WIDTH) -> None:
+    """Render the real incident photo when one exists; stay silent when there is none."""
+    path = _evidence_image(record)
+    if path is None:
+        return
+    st.markdown(
+        '<div class="detail-label reference-label">Incident evidence</div>',
+        unsafe_allow_html=True,
+    )
+    st.image(str(path), width=width)
 
 
 def _incident_name(record: LogRecord) -> str:
@@ -825,6 +854,7 @@ def _incident_details(record: LogRecord) -> None:
             unsafe_allow_html=True,
         )
     if assessment.source.startswith("ppe"):
+        _render_evidence_image(record)
         item = _ppe_item_text(assessment.label)
         _render_reference_image(_ppe_item_key(assessment.label), f"Correct {item}")
     notes = st.session_state["incident_notes"].get(record.record_id)
@@ -854,6 +884,7 @@ def _incident_evidence(record: LogRecord) -> None:
     _render_detail_grid(_detail_rows(record))
     if (confidence := _confidence(record)) is not None:
         st.progress(confidence, text=f"Detection confidence {confidence:.0%}")
+    _render_evidence_image(record)
 
 
 def _incident_response(record: LogRecord) -> None:

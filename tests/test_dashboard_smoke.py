@@ -39,6 +39,7 @@ class DashboardPresentationSmokeTest(unittest.TestCase):
         detail: dict,
         severity: Severity = Severity.MINOR,
         description: str = "",
+        evidence_image: str | None = None,
     ) -> LogRecord:
         at = datetime(2026, 8, 10, 12, 0, tzinfo=timezone.utc)
         assessment = RiskAssessment(
@@ -51,6 +52,7 @@ class DashboardPresentationSmokeTest(unittest.TestCase):
             source_detail=detail,
             assessed_at=at,
             requires_review=False,
+            evidence_image=evidence_image,
         )
         routed = RoutedAlert(assessment=assessment, decision="notify", routed_at=at)
         return LogRecord(
@@ -198,6 +200,55 @@ class DashboardPresentationSmokeTest(unittest.TestCase):
                 self.assertEqual(app._ppe_item_key("no_goggle"), "goggles")
                 self.assertEqual(app._reference_image("goggles"), reference)
                 self.assertIsNone(app._reference_image("helmet"))
+
+    def test_evidence_image_resolves_the_real_stored_frame(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            frame = Path(directory) / "image1006.jpg"
+            frame.write_bytes(b"")
+            record = self._record(
+                source="ppe",
+                label="no_helmet",
+                detail={"item": "no_helmet"},
+                evidence_image=str(frame),
+            )
+
+            self.assertEqual(app._evidence_image(record), frame)
+
+    def test_evidence_image_is_none_without_a_stored_path(self) -> None:
+        record = self._record(
+            source="heat_wbgt", label="Caution", detail={"title": "Heat Caution"}
+        )
+
+        self.assertIsNone(app._evidence_image(record))
+
+    def test_evidence_image_is_none_when_the_stored_file_no_longer_exists(self) -> None:
+        record = self._record(
+            source="ppe",
+            label="no_helmet",
+            detail={"item": "no_helmet"},
+            evidence_image="data/sample_images/does-not-exist-image.jpg",
+        )
+
+        self.assertIsNone(app._evidence_image(record))
+
+    def test_evidence_image_resolves_a_repo_relative_path(self) -> None:
+        """risk_scoring stores evidence_image relative to the repo root (see
+        agents/risk_scoring/agent.py's _evidence_path) so the demo works after a clone onto a
+        different machine — the dashboard must resolve that relative path the same way.
+        """
+        record = self._record(
+            source="ppe",
+            label="no_helmet",
+            detail={"item": "no_helmet"},
+            evidence_image="data/sample_images/image1006.jpg",
+        )
+
+        resolved = app._evidence_image(record)
+
+        self.assertEqual(
+            resolved, app.PROJECT_ROOT / "data/sample_images/image1006.jpg"
+        )
+        self.assertTrue(resolved.exists())
 
     def test_severity_badge_uses_css_class_instead_of_inline_colors(self) -> None:
         markup = app._severity_badge("Critical")

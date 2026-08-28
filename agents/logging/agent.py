@@ -27,11 +27,20 @@ CREATE TABLE IF NOT EXISTS records (
     source_detail TEXT NOT NULL,
     assessed_at TEXT NOT NULL,
     requires_review INTEGER NOT NULL DEFAULT 0,
+    evidence_image TEXT,
     decision TEXT NOT NULL,
     routed_at TEXT NOT NULL,
     recorded_at TEXT NOT NULL
 )
 """
+
+# Columns added after the table's original release. Each new LoggingAgent checks for these
+# and adds any that are missing, so a database created by an older version of this code
+# upgrades itself in place instead of needing a manual migration step.
+_ADDED_COLUMNS = (
+    ("requires_review", "INTEGER NOT NULL DEFAULT 0"),
+    ("evidence_image", "TEXT"),
+)
 
 
 def _utc_iso(timestamp: datetime) -> str:
@@ -57,29 +66,28 @@ class LoggingAgent:
         database.parent.mkdir(parents=True, exist_ok=True)
         with self._connection() as connection:
             connection.execute(_CREATE_RECORDS_TABLE)
-            self._migrate_requires_review_column(connection)
+            self._migrate_added_columns(connection)
 
     @staticmethod
-    def _migrate_requires_review_column(connection: sqlite3.Connection) -> None:
-        """Add requires_review to a database created before this column existed.
+    def _migrate_added_columns(connection: sqlite3.Connection) -> None:
+        """Add any column from _ADDED_COLUMNS missing from a database created before it existed.
 
         Check-then-act against PRAGMA table_info is inherently racy: two LoggingAgents
         constructed at the same moment (e.g. concurrent dashboard sessions, or a dashboard
-        left open while a seed script re-runs) can both see the column missing and both
-        attempt the ALTER TABLE. Only one wins; treat the other's "duplicate column" failure
-        as success rather than letting it crash the caller.
+        left open while a seed script re-runs) can both see a column missing and both attempt
+        the ALTER TABLE. Only one wins; treat the other's "duplicate column" failure as success
+        rather than letting it crash the caller.
         """
 
         columns = {row[1] for row in connection.execute("PRAGMA table_info(records)")}
-        if "requires_review" in columns:
-            return
-        try:
-            connection.execute(
-                "ALTER TABLE records ADD COLUMN requires_review INTEGER NOT NULL DEFAULT 0"
-            )
-        except sqlite3.OperationalError as exc:
-            if "duplicate column name" not in str(exc):
-                raise
+        for name, ddl_type in _ADDED_COLUMNS:
+            if name in columns:
+                continue
+            try:
+                connection.execute(f"ALTER TABLE records ADD COLUMN {name} {ddl_type}")
+            except sqlite3.OperationalError as exc:
+                if "duplicate column name" not in str(exc):
+                    raise
 
     def record(
         self,
@@ -100,8 +108,8 @@ class LoggingAgent:
                 INSERT INTO records (
                     record_id, source, severity, label, description, zone,
                     recommended_actions, source_detail, assessed_at, requires_review,
-                    decision, routed_at, recorded_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    evidence_image, decision, routed_at, recorded_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     record.record_id,
@@ -114,6 +122,7 @@ class LoggingAgent:
                     json.dumps(assessment.source_detail),
                     _utc_iso(assessment.assessed_at),
                     int(assessment.requires_review),
+                    assessment.evidence_image,
                     routed_alert.decision,
                     _utc_iso(routed_alert.routed_at),
                     _utc_iso(record.recorded_at),
@@ -200,6 +209,7 @@ class LoggingAgent:
             source_detail=json.loads(row["source_detail"]),
             assessed_at=_from_iso(row["assessed_at"]),
             requires_review=bool(row["requires_review"]),
+            evidence_image=row["evidence_image"],
         )
         routed_alert = RoutedAlert(
             assessment=assessment,

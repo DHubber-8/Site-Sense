@@ -28,6 +28,24 @@ CREATE TABLE IF NOT EXISTS records (
 )
 """
 
+_PRE_EVIDENCE_IMAGE_SCHEMA = """
+CREATE TABLE IF NOT EXISTS records (
+    record_id TEXT PRIMARY KEY,
+    source TEXT NOT NULL,
+    severity INTEGER NOT NULL,
+    label TEXT NOT NULL,
+    description TEXT NOT NULL,
+    zone TEXT,
+    recommended_actions TEXT NOT NULL,
+    source_detail TEXT NOT NULL,
+    assessed_at TEXT NOT NULL,
+    requires_review INTEGER NOT NULL DEFAULT 0,
+    decision TEXT NOT NULL,
+    routed_at TEXT NOT NULL,
+    recorded_at TEXT NOT NULL
+)
+"""
+
 
 class LoggingSmokeTest(unittest.TestCase):
     def setUp(self) -> None:
@@ -44,6 +62,7 @@ class LoggingSmokeTest(unittest.TestCase):
         source: str,
         timestamp: datetime | None = None,
         requires_review: bool = False,
+        evidence_image: str | None = None,
     ) -> RoutedAlert:
         timestamp = timestamp or self.timestamp
         assessment = RiskAssessment(
@@ -56,6 +75,7 @@ class LoggingSmokeTest(unittest.TestCase):
             source_detail={"synthetic": True, "source": source},
             assessed_at=timestamp,
             requires_review=requires_review,
+            evidence_image=evidence_image,
         )
         return RoutedAlert(
             assessment=assessment,
@@ -84,6 +104,52 @@ class LoggingSmokeTest(unittest.TestCase):
         recent = self.store.recent()
 
         self.assertTrue(recent[0].routed_alert.assessment.requires_review)
+
+    def test_record_persists_evidence_image_path(self) -> None:
+        routed_alert = self._routed_alert(
+            Severity.CRITICAL,
+            "ppe",
+            evidence_image="data/sample_images/image1006.jpg",
+        )
+
+        self.store.record(routed_alert)
+        recent = self.store.recent()
+
+        self.assertEqual(
+            recent[0].routed_alert.assessment.evidence_image,
+            "data/sample_images/image1006.jpg",
+        )
+
+    def test_record_persists_no_evidence_image_for_heat_sources(self) -> None:
+        routed_alert = self._routed_alert(Severity.MODERATE, "heat_wbgt")
+
+        self.store.record(routed_alert)
+        recent = self.store.recent()
+
+        self.assertIsNone(recent[0].routed_alert.assessment.evidence_image)
+
+    def test_evidence_image_column_migrates_onto_an_older_database(self) -> None:
+        """A database created before evidence_image existed (but after requires_review) must
+        gain the column automatically, the same way requires_review itself was added."""
+        database_path = Path(self.temporary_directory.name) / "pre_evidence_image.db"
+        connection = sqlite3.connect(database_path)
+        connection.execute(_PRE_EVIDENCE_IMAGE_SCHEMA)
+        connection.commit()
+        connection.close()
+
+        store = LoggingAgent(database_path)
+        store.record(
+            self._routed_alert(
+                Severity.CRITICAL,
+                "ppe",
+                evidence_image="data/sample_images/image1006.jpg",
+            )
+        )
+
+        self.assertEqual(
+            store.recent()[0].routed_alert.assessment.evidence_image,
+            "data/sample_images/image1006.jpg",
+        )
 
     def test_concurrent_instantiation_against_a_pre_migration_database_does_not_crash(
         self,

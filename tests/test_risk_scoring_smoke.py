@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import unittest
 from datetime import date, datetime, timezone
+from pathlib import Path
 
 from agents.heat_detection.schema import (
     HeatComplianceAlert,
@@ -372,6 +373,95 @@ class RiskScoringSmokeTest(unittest.TestCase):
 
         self.assertEqual(detection_assessment.source_detail, detection.to_dict())
         self.assertEqual(alert_assessment.source_detail, alert.to_dict())
+
+    def test_ppe_assessments_carry_the_batch_source_image_as_evidence(self) -> None:
+        detection = PpeDetection(
+            item="no_helmet",
+            confidence=0.91,
+            bounding_box=BoundingBox(1.0, 2.0, 11.0, 12.0),
+        )
+        batch = PpeDetectionBatch(
+            detections=[detection],
+            source_image="data/sample_images/image1006.jpg",
+        )
+
+        assessments = self.scoring_agent.assess(batch)
+
+        self.assertTrue(assessments)
+        for assessment in assessments:
+            self.assertEqual(
+                assessment.evidence_image, "data/sample_images/image1006.jpg"
+            )
+
+    def test_evidence_image_stores_a_repo_relative_path_not_a_machine_absolute_one(
+        self,
+    ) -> None:
+        """PpeDetectionAgent stores source_image as an absolute path (whatever form the
+        caller's image argument took). Persisting that as-is into evidence_image would bake
+        one machine's directory layout into the demo database, breaking evidence display for
+        anyone who clones the repo somewhere else. Store it relative to the working directory
+        instead, since every real entry point (scripts, dashboard, tests) runs from repo root.
+        """
+        detection = PpeDetection(
+            item="no_helmet",
+            confidence=0.91,
+            bounding_box=BoundingBox(1.0, 2.0, 11.0, 12.0),
+        )
+        absolute_source_image = str(
+            Path.cwd() / "data" / "sample_images" / "image1006.jpg"
+        )
+        batch = PpeDetectionBatch(
+            detections=[detection], source_image=absolute_source_image
+        )
+
+        assessments = self.scoring_agent.assess(batch)
+
+        self.assertTrue(assessments)
+        for assessment in assessments:
+            self.assertEqual(
+                assessment.evidence_image, "data/sample_images/image1006.jpg"
+            )
+            self.assertFalse(Path(assessment.evidence_image).is_absolute())
+
+    def test_ppe_assessments_leave_evidence_image_unset_without_a_source_frame(
+        self,
+    ) -> None:
+        detection = PpeDetection(
+            item="helmet", confidence=0.9, bounding_box=BoundingBox(1.0, 2.0, 5.0, 6.0)
+        )
+        batch = PpeDetectionBatch(detections=[detection], source_image=None)
+
+        assessments = self.scoring_agent.assess(batch)
+
+        self.assertTrue(assessments)
+        self.assertTrue(
+            all(assessment.evidence_image is None for assessment in assessments)
+        )
+
+    def test_heat_assessments_have_no_evidence_image(self) -> None:
+        """Heat detection runs on proxy/synthetic condition data, not imagery — there is no
+        frame to point at, unlike PPE detections."""
+        alert = WBGTRiskAlert(
+            city="Synthetic Site",
+            reading_at=self.reading_at,
+            wbgt_c=32.1,
+            level="Extreme",
+            title="Extreme Heat Risk",
+            threshold_min_c=32.0,
+            regulatory_actions=["Move workers to shade"],
+            ai_actions=["Suspend heavy outdoor work"],
+        )
+
+        assessment = self.scoring_agent.assess(
+            WBGTRiskBatch(
+                site_city="Synthetic Site",
+                reading_at=self.reading_at,
+                wbgt_c=32.1,
+                alerts=[alert],
+            )
+        )[0]
+
+        self.assertIsNone(assessment.evidence_image)
 
 
 if __name__ == "__main__":

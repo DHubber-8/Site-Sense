@@ -28,6 +28,7 @@ class RiskAssessment:
     source_detail: dict[str, Any]
     assessed_at: datetime
     requires_review: bool = False
+    evidence_image: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -40,4 +41,5 @@ class RiskAssessment:
             "source_detail": dict(self.source_detail),
             "assessed_at": self.assessed_at.isoformat(),
             "requires_review": self.requires_review,
+            "evidence_image": self.evidence_image,
         }
