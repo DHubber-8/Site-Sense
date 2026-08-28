@@ -117,8 +117,8 @@ def inject_css() -> None:
      [data-testid="stDialog"] [role="dialog"] textarea { color:var(--ink)!important; background:var(--surface)!important; border:1.5px solid var(--line)!important; }
      [data-testid="stDialog"] [role="dialog"] textarea::placeholder { color:var(--faint)!important; opacity:1!important; }
      [data-testid="stDialog"] [role="dialog"] button { color:var(--ink)!important; border-color:var(--line)!important; background:var(--surface)!important; }
-     [data-testid="stDialog"] [role="dialog"] button[kind="primary"] { color:#ffffff!important; background:var(--blue)!important; border-color:var(--blue)!important; }
-     [data-testid="stDialog"] [role="dialog"] button[kind="primary"] p, [data-testid="stDialog"] [role="dialog"] button p { color:inherit!important; }
+    [data-testid="stDialog"] [role="dialog"] button[kind="primary"], [data-testid="stDialog"] [role="dialog"] [data-testid="stBaseButton-primary"] { color:#ffffff!important; -webkit-text-fill-color:#ffffff!important; background:var(--blue)!important; border-color:var(--blue)!important; }
+    [data-testid="stDialog"] [role="dialog"] button[kind="primary"] p, [data-testid="stDialog"] [role="dialog"] [data-testid="stBaseButton-primary"] p { color:#ffffff!important; -webkit-text-fill-color:#ffffff!important; }
     @media (max-width:800px) { .st-key-mobile-brand { display:block; } .page-intro { margin-bottom:1rem; } .section-gap { height:1rem; } }
     </style>
     """,
