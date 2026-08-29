@@ -4,10 +4,17 @@ from __future__ import annotations
 
 import unittest
 
-from scripts.seed_demo_data import _build_wbgt_assessments
+from scripts.seed_demo_data import SAMPLE_IMAGES, _build_wbgt_assessments
 
 
 class SeedDemoDataSmokeTest(unittest.TestCase):
+    def test_seed_sample_images_include_the_real_image_set(self) -> None:
+        """The seeding script should evaluate the full sample corpus instead of a tiny
+        hardcoded subset; this keeps the demo database representative of the real model
+        output across the repository's sample frames."""
+        self.assertGreater(len(SAMPLE_IMAGES), 4)
+        self.assertTrue(all(path.exists() for path in SAMPLE_IMAGES))
+
     def test_brief_spike_scenario_produces_no_wbgt_alert(self) -> None:
         """data/heat_proxy_or_synthetic/brief_spike.json is a single transient WBGT spike
         (wbgt_c=29.81 at 13:00, surrounded by readings below the elevated threshold) that

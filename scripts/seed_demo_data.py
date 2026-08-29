@@ -28,12 +28,15 @@ from agents.ppe_detection.schema import PpeDetectionBatch
 from agents.risk_scoring.agent import RiskScoringAgent
 
 DATABASE_PATH = REPO_ROOT / "data" / "site_sense.db"
-SAMPLE_IMAGES = [
-    REPO_ROOT / "data" / "sample_images" / "image1006.jpg",
-    REPO_ROOT / "data" / "sample_images" / "image287.jpg",
-    REPO_ROOT / "data" / "sample_images" / "image1132.jpg",
-    REPO_ROOT / "data" / "sample_images" / "image460.jpg",
-]
+SAMPLE_IMAGE_DIR = REPO_ROOT / "data" / "sample_images"
+SAMPLE_IMAGES = sorted(
+    (
+        path
+        for path in SAMPLE_IMAGE_DIR.iterdir()
+        if path.is_file() and path.suffix.lower() in {".jpg", ".jpeg", ".png", ".webp"}
+    ),
+    key=lambda path: path.name,
+)
 WBGT_SCENARIOS = [
     "baseline",
     "direct_sun_accumulation",
@@ -72,6 +75,7 @@ def _build_ppe_assessments() -> list[Any]:
     agent = PpeDetectionAgent(model_path=checkpoint)
     scoring_agent = RiskScoringAgent()
     assessments: list[Any] = []
+
     for image_path in SAMPLE_IMAGES:
         if not image_path.exists():
             print(f"  Skipping missing sample image: {image_path.name}")
@@ -81,13 +85,30 @@ def _build_ppe_assessments() -> list[Any]:
         except Exception as exc:
             print(f"  Skipping {image_path.name}: PPE detection failed ({exc})")
             continue
+
         filtered_detections = [
             detection
             for detection in batch.detections
             if detection.item in PPE_SUPPORTED_LABELS
         ]
+
+        print(f"  {image_path.name} raw detections:")
         if not filtered_detections:
+            print("    none")
             continue
+
+        core_items = {"helmet", "gloves", "vest", "boots", "goggles"}
+        for detection in filtered_detections:
+            direct_worn = (
+                detection.item in core_items and detection.confidence >= 0.5
+            )
+            status = "direct_worn" if direct_worn else "other"
+            print(
+                "    - "
+                f"{detection.item:<12s} confidence={detection.confidence:.3f} "
+                f"raw_label={detection.raw_label or detection.item} status={status}"
+            )
+
         supported_batch = PpeDetectionBatch(
             detections=filtered_detections,
             source_image=batch.source_image,
