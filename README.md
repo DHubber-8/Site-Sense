@@ -7,6 +7,14 @@ Using a multi-agent pipeline, Site Sense detects missing safety equipment and el
 Every flagged incident is logged with a timestamped compliance trail, giving managers both real-time alerts and a historical record. Built with construction's climate conditions in mind — particularly relevant in high-heat regions where heat exhaustion is an underrepresented but serious site risk alongside traditional PPE compliance.
 
 ---
+## License
+
+This project is licensed under AGPL-3.0 — see [LICENSE](./LICENSE). This is
+required because Site Sense depends on Ultralytics YOLO for PPE detection,
+which is AGPL-3.0-licensed by default (training code and trained models
+alike) unless a commercial Enterprise license is held. This repo's full
+source is public, satisfying AGPL-3.0's network-use disclosure requirement
+for the deployed dashboard.
 
 ## Status
 
